@@ -1,0 +1,17 @@
+{% extends 'investments/layout.html' %}
+
+{% block Title %}{% endblock %}
+
+{% block BodyContent %}
+    <div class="portfolio-list">
+        {% if portfolio %}
+            <ul>
+            {% for row in portfolio %}
+                <li>${{ row.ticker }} - {{ row.quantity }} * {{ row.price }} {{ row.currency }}</li>
+            {% endfor %}
+            </ul>
+        {% else %}
+            <h1>Empty portfolio</h1>
+        {% endif %}
+    </div>
+{% endblock %}

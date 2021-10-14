@@ -38,6 +38,8 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'investments.apps.InvestmentsConfig',
+    'crispy_forms',
 ]
 
 MIDDLEWARE = [
@@ -76,8 +78,12 @@ WSGI_APPLICATION = 'config.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.postgresql_psycopg2',
+        'NAME': os.getenv('DB_POSTGRES_INVESTMENT_STATS_NAME'),
+        'USER': os.getenv('DB_POSTGRES_USER'),
+        'PASSWORD': os.getenv('DB_POSTGRES_USER_PASSWORD'),
+        'HOST': os.getenv('DB_POSTGRES_HOST'),
+        'PORT': os.getenv('DB_POSTGRES_PORT'),
     }
 }
 
@@ -114,6 +120,7 @@ USE_L10N = True
 
 USE_TZ = True
 
+CRISPY_TEMPLATE_PACK = 'bootstrap4'
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/3.2/howto/static-files/
