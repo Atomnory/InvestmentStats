@@ -14,4 +14,11 @@
             <h1>Empty portfolio</h1>
         {% endif %}
     </div>
+    <div class="portfolio-graph">
+        {% if is_graph_exist %}
+            <p1>Graph</p1>
+        {% else %}
+            <a href="{% url 'load_graph' %}" class="btn btn-primary" role="button">Update graph</a>
+        {% endif %}
+    </div>
 {% endblock %}
