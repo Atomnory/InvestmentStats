@@ -1,26 +1,50 @@
 {% extends 'investments/layout.html' %}
+{% load crispy_forms_tags %}
 
 {% block Title %}{% endblock %}
 
 {% block BodyContent %}
-    <div class="securities-list">
-        {% if securities %}
-            <ul>
-            {% for row in securities %}
-                <li>${{ row.ticker }} - {{ row.quantity }} * {{ row.price }} {{ row.currency }}</li>
-            {% endfor %}
-            </ul>
-        {% else %}
-            <h1>Empty portfolio</h1>
-        {% endif %}
+<div class="row">
+    <div class="column">
+        <div class="securities-graph">
+            {% if graph %}
+                <img src="{{ graph.url }}" alt="Pie graph">
+            {% endif %}
+        </div>
+        <div class="update-graph-button">
+            <form method="post">
+                {% csrf_token %}
+                <button class="btn btn-primary" type="submit" name="update_graph">Update graph</button>
+            </form>
+        </div>
+        <div class="securities-list">
+            {% if securities %}
+                <ul>
+                {% for row in securities %}
+                    <li>${{ row.ticker }} - {{ row.quantity }} * {{ row.price }} {{ row.currency }}</li>
+                {% endfor %}
+                </ul>
+            {% else %}
+                <h1>Empty portfolio</h1>
+            {% endif %}
+        </div>
     </div>
-    <div class="securities-graph">
-        {% if graph %}
-            <img src="{{ graph.url }}" alt="Pie graph">
-        {% endif %}
-    </div>
-    <form method="post">
-        {% csrf_token %}
-        <button class="btn btn-primary" type="submit">Update graph</button>
-    </form>
+
+    <div class="column">
+        <div class="create-security">
+            <form method="post">
+                {% csrf_token %}
+                {{ form_creating|crispy }}
+                <button class="btn btn-success" type="submit" name="create_security">Add security</button>
+            </form>
+        </div>
+        <div class="delete-security">
+            <form method="post">
+                {% csrf_token %}
+                {{ form_deleting|crispy }}
+                <button class="btn btn-danger" type="submit" name="delete_security">Delete security</button>
+            </form>
+        </div>
+    </div>  
+</div>
 {% endblock %}

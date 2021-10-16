@@ -1,0 +1,49 @@
+* {
+    margin: 0;
+}
+
+.body {
+    width: 100%;
+    overflow: hidden;
+}
+
+.row {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    width: 100%;
+}
+
+.column {
+    flex-direction: column;
+    flex: 1;
+}
+
+.row button {
+    margin-top: 10px;
+    margin-top: 10px;
+}
+
+.securities-graph {
+    padding: 10px;
+}
+
+.update-graph-button {
+    padding: 10px;
+}
+
+.securities-list {
+    padding: 10px;
+}
+
+.securities-list ul {
+    list-style-type: none;
+}
+
+.create-security {
+    padding: 10px;
+}
+
+.create-security form {
+    width: 60%;
+}

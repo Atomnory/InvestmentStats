@@ -33,6 +33,21 @@ class Securities(models.Model):
     sector = models.CharField('Sector', max_length=20, choices=sector_choice)
     country = models.CharField('Country', max_length=20)
 
+    class Meta:
+        ordering = ['ticker']
+
+    def __str__(self):
+        return self.ticker
+
+    def get_full_name(self):
+        return self.name
+
 
 class PieGraph(models.Model):
     graph = models.ImageField('Pie Graph', upload_to='pie_graph')
+
+
+class ExchangeRate(models.Model):
+    last_update_date = models.DateField('Last update', auto_now=True)
+    eur_rate = models.DecimalField('EUR rate', max_digits=10, decimal_places=4)
+    rub_rate = models.DecimalField('RUB rate', max_digits=10, decimal_places=4)
