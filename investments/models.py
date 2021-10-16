@@ -1,7 +1,7 @@
 from django.db import models
 
 
-class Portfolio(models.Model):
+class Securities(models.Model):
     currency_choice = (
         ('EUR', 'EUR'),
         ('RUB', 'RUB'),
@@ -32,3 +32,7 @@ class Portfolio(models.Model):
     currency = models.CharField('Currency', max_length=3, choices=currency_choice)
     sector = models.CharField('Sector', max_length=20, choices=sector_choice)
     country = models.CharField('Country', max_length=20)
+
+
+class PieGraph(models.Model):
+    graph = models.ImageField('Pie Graph', upload_to='pie_graph')

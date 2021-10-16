@@ -3,10 +3,10 @@
 {% block Title %}{% endblock %}
 
 {% block BodyContent %}
-    <div class="portfolio-list">
-        {% if portfolio %}
+    <div class="securities-list">
+        {% if securities %}
             <ul>
-            {% for row in portfolio %}
+            {% for row in securities %}
                 <li>${{ row.ticker }} - {{ row.quantity }} * {{ row.price }} {{ row.currency }}</li>
             {% endfor %}
             </ul>
@@ -14,11 +14,13 @@
             <h1>Empty portfolio</h1>
         {% endif %}
     </div>
-    <div class="portfolio-graph">
-        {% if is_graph_exist %}
-            <p1>Graph</p1>
-        {% else %}
-            <a href="{% url 'load_graph' %}" class="btn btn-primary" role="button">Update graph</a>
+    <div class="securities-graph">
+        {% if graph %}
+            <img src="{{ graph.url }}" alt="Pie graph">
         {% endif %}
     </div>
+    <form method="post">
+        {% csrf_token %}
+        <button class="btn btn-primary" type="submit">Update graph</button>
+    </form>
 {% endblock %}
