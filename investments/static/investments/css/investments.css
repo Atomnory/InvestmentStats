@@ -47,3 +47,19 @@
 .create-security form {
     width: 60%;
 }
+
+.delete-security {
+    padding: 10px;
+}
+
+.delete-security form {
+    width: 60%;
+}
+
+.increase-security {
+    padding: 10px;
+}
+
+.increase-security form {
+    width: 60%;
+}

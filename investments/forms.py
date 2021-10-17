@@ -15,4 +15,10 @@ class SecuritiesDeleteForm(forms.ModelForm):
         model = Securities
         fields = ['field']
 
-# TODO: add Security Increase Form that add new quantity to prev quantity
+
+class SecuritiesIncreaseQuantityForm(forms.ModelForm):
+    field = forms.ModelChoiceField(queryset=Securities.objects.all(), empty_label='Choose security')
+
+    class Meta:
+        model = Securities
+        fields = ['field', 'quantity']
