@@ -1,7 +1,8 @@
 
 
-3. Add 'auth and auth', add user, make securities private
+3.5 Complete, clear and refactor code after adding "auth and auth"
 4. Add graph with partition depends on country and sector
 5. Use Tinkoff API (or other broker API) to request current price of securities (try to use this API to get exchange rate instead 3-rd parties)
 6. Use Tinkoff API user token to get info about user securities
 7. Add and use Javascript animation to display pie graph instead of Matplotlib
+8. Add Django REST Framework using

@@ -1,24 +1,33 @@
 from django import forms
-from .models import Securities
+from .models import PortfolioItem, Portfolio, Securities
 
 
 class SecuritiesCreateForm(forms.ModelForm):
-    class Meta:
-        model = Securities
-        fields = ['ticker', 'name', 'quantity', 'price', 'currency', 'sector', 'country']
-
-
-class SecuritiesDeleteForm(forms.ModelForm):
-    field = forms.ModelChoiceField(queryset=Securities.objects.all(), empty_label='Choose security')
+    security_select = forms.ModelChoiceField(queryset=Securities.objects.all(), empty_label='Choose security')
 
     class Meta:
-        model = Securities
-        fields = ['field']
+        model = PortfolioItem
+        fields = ['security_select', 'quantity']
 
 
-class SecuritiesIncreaseQuantityForm(forms.ModelForm):
-    field = forms.ModelChoiceField(queryset=Securities.objects.all(), empty_label='Choose security')
+# class SecuritiesDeleteForm(forms.ModelForm):
+#     field = forms.ModelChoiceField(queryset=PortfolioItem.objects.all(), empty_label='Choose security')
+#
+#     class Meta:
+#         model = PortfolioItem
+#         fields = ['field']
+#
+#
+# class SecuritiesIncreaseQuantityForm(forms.ModelForm):
+#     field = forms.ModelChoiceField(queryset=Securities.objects.all(), empty_label='Choose security')
+#
+#     class Meta:
+#         model = PortfolioItem
+#         fields = ['field', 'quantity']
 
+
+class PortfolioCreateForm(forms.ModelForm):
     class Meta:
-        model = Securities
-        fields = ['field', 'quantity']
+        model = Portfolio
+        fields = ['name']
+

@@ -39,6 +39,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'investments.apps.InvestmentsConfig',
+    'account.apps.AccountConfig',
     'crispy_forms',
 ]
 
@@ -131,8 +132,9 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 MEDIA_URL = '/media/'
 
 EXCHANGE_API_KEY = os.getenv('EXCHANGE_RATE_API_KEY')
-GRAPH_NAME = os.path.join('pie_graph', 'securities_pie.png')
-GRAPH_PATH = os.path.join(MEDIA_ROOT, GRAPH_NAME)
+
+LOGIN_REDIRECT_URL = 'index'
+LOGOUT_REDIRECT_URL = 'index'
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/3.2/ref/settings/#default-auto-field

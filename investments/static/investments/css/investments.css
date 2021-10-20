@@ -2,9 +2,48 @@
     margin: 0;
 }
 
-.body {
+body {
     width: 100%;
     overflow: hidden;
+}
+
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+
+    background: #66cc99;
+    height: 70px;
+    border-bottom: 2px solid #669999;
+    flex-direction: row;
+
+    overflow: hidden;
+    white-space: initial;
+
+    text-align: left;
+    font-family: 'Arial', sans-serif;
+}
+
+.header a {
+    font-size: 28px;
+
+    display: inline-block;
+    margin: 0 25px;
+
+    color: #0c3f66;
+    text-decoration: none;
+
+    transition: color 150ms linear;
+    position: relative;
+}
+
+.header a:hover {
+    color: #64150C;
+}
+
+.body-content button {
+    margin-top: 10px;
+    margin-bottom: 10px;
 }
 
 .row {
@@ -20,8 +59,7 @@
 }
 
 .row button {
-    margin-top: 10px;
-    margin-top: 10px;
+
 }
 
 .securities-graph {
@@ -38,6 +76,11 @@
 
 .securities-list ul {
     list-style-type: none;
+}
+
+.create-portfolio {
+    padding: 10px;
+    width: 60%;
 }
 
 .create-security {

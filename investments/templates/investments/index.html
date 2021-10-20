@@ -1,55 +1,25 @@
 {% extends 'investments/layout.html' %}
 {% load crispy_forms_tags %}
 
-{% block Title %}{% endblock %}
+{% block Title %}Portfolios{% endblock %}
 
 {% block BodyContent %}
-<div class="row">
-    <div class="column">
-        <div class="securities-graph">
-            <img src="{{ graph.url }}" alt="Pie graph">
-        </div>
-        <div class="update-graph-button">
-            <form method="post">
-                {% csrf_token %}
-                <button class="btn btn-primary" type="submit" name="update_graph">Update graph</button>
-            </form>
-        </div>
-        <div class="securities-list">
-            {% if securities %}
-                <ul>
-                {% for row in securities %}
-                    <li>${{ row.0 }} - {{ row.1 }} {{ row.2 }}</li>
-                {% endfor %}
-                </ul>
-            {% else %}
-                <h1>Empty portfolio</h1>
-            {% endif %}
-        </div>
-    </div>
-
-    <div class="column">
-        <div class="create-security">
+    {% if not user.is_authenticated %}
+        <h2>You should be login to add portfolio and securities.</h2>
+    {% else %}
+        <div class="create-portfolio">
             <form method="post">
                 {% csrf_token %}
                 {{ form_creating|crispy }}
-                <button class="btn btn-success" type="submit" name="create_security">Add security</button>
+                <button class="btn btn-success" type="submit" name="create-portfolio">Create portfolio</button>
             </form>
         </div>
-        <div class="increase-security">
-            <form method="post">
-                {% csrf_token %}
-                {{ form_increasing|crispy }}
-                <button class="btn btn-info" type="submit" name="increase_security">Increase quantity</button>
-            </form>
-        </div>
-        <div class="delete-security">
-            <form method="post">
-                {% csrf_token %}
-                {{ form_deleting|crispy }}
-                <button class="btn btn-danger" type="submit" name="delete_security">Delete security</button>
-            </form>
-        </div>
-    </div>  
-</div>
+    {% endif %}
+    {% if portfolios %}
+        <ul>
+        {% for row in portfolios %}
+            <li><a href="{% url 'portfolio' row.pk %}">{{ row.name }}</a></li>
+        {% endfor %}
+        </ul>
+    {% endif %}
 {% endblock %}
