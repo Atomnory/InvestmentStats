@@ -12,9 +12,9 @@ body {
     justify-content: space-between;
     align-items: center;
 
-    background: #66cc99;
-    height: 70px;
-    border-bottom: 2px solid #669999;
+    background: #EBC7B0;
+    height: 50px;
+    border-bottom: 2px solid #EBABA4;
     flex-direction: row;
 
     overflow: hidden;
@@ -25,12 +25,12 @@ body {
 }
 
 .header a {
-    font-size: 28px;
+    font-size: 24px;
 
     display: inline-block;
     margin: 0 25px;
 
-    color: #0c3f66;
+    color: #98BDEB;
     text-decoration: none;
 
     transition: color 150ms linear;
@@ -38,7 +38,7 @@ body {
 }
 
 .header a:hover {
-    color: #64150C;
+    color: #C7EBD8;
 }
 
 .body-content button {
@@ -66,10 +66,6 @@ body {
     padding: 10px;
 }
 
-.update-graph-button {
-    padding: 10px;
-}
-
 .securities-list {
     padding: 10px;
 }
@@ -88,7 +84,7 @@ body {
 }
 
 .create-security form {
-    width: 60%;
+    width: auto;
 }
 
 .delete-security {
@@ -96,7 +92,7 @@ body {
 }
 
 .delete-security form {
-    width: 60%;
+    width: auto;
 }
 
 .increase-security {
@@ -104,5 +100,5 @@ body {
 }
 
 .increase-security form {
-    width: 60%;
+    width: auto;
 }

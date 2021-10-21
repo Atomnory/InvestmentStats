@@ -9,12 +9,8 @@
         <div class="securities-graph">
             <img src="{{ graph.url }}" alt="Pie graph">
         </div>
-        <div class="update-graph-button">
-            <form method="post">
-                {% csrf_token %}
-                <button class="btn btn-primary" type="submit" name="update_graph">Update graph</button>
-            </form>
-        </div>
+    </div>
+    <div class="column">
         <div class="securities-list">
             {% if securities %}
                 <ul>
@@ -27,7 +23,6 @@
             {% endif %}
         </div>
     </div>
-
     <div class="column">
         <div class="create-security">
             <form method="post">
@@ -36,21 +31,20 @@
                 <button class="btn btn-success" type="submit" name="create_security">Add security</button>
             </form>
         </div>
-
-<!--        <div class="increase-security">-->
-<!--            <form method="post">-->
-<!--                {% csrf_token %}-->
-<!--                {{ form_increasing|crispy }}-->
-<!--                <button class="btn btn-info" type="submit" name="increase_security">Increase quantity</button>-->
-<!--            </form>-->
-<!--        </div>-->
-<!--        <div class="delete-security">-->
-<!--            <form method="post">-->
-<!--                {% csrf_token %}-->
-<!--                {{ form_deleting|crispy }}-->
-<!--                <button class="btn btn-danger" type="submit" name="delete_security">Delete security</button>-->
-<!--            </form>-->
-<!--        </div>-->
+        <div class="increase-security">
+            <form method="post">
+                {% csrf_token %}
+                {{ form_increasing|crispy }}
+                <button class="btn btn-info" type="submit" name="increase_security">Increase quantity</button>
+            </form>
+        </div>
+        <div class="delete-security">
+            <form method="post">
+                {% csrf_token %}
+                {{ form_deleting|crispy }}
+                <button class="btn btn-danger" type="submit" name="delete_security">Delete security</button>
+            </form>
+        </div>
     </div>
 </div>
 {% endblock %}

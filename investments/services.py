@@ -1,6 +1,7 @@
 import datetime
 from typing import Union
 from decimal import Decimal, ROUND_HALF_UP
+from django.shortcuts import redirect
 
 import matplotlib.pyplot as plt
 import requests
@@ -9,82 +10,77 @@ from django.http.request import QueryDict
 from django.core.handlers.wsgi import WSGIRequest
 
 # from config.settings import GRAPH_NAME, GRAPH_PATH,
-from .models import Securities, ExchangeRate, Portfolio
-from .forms import SecuritiesCreateForm
- # , SecuritiesDeleteForm, SecuritiesIncreaseQuantityForm
+from .models import Securities, ExchangeRate, Portfolio, PortfolioItem
+from .forms import SecuritiesCreateForm, SecuritiesDeleteForm, SecuritiesIncreaseQuantityForm
 import os
 from config.settings import MEDIA_ROOT, EXCHANGE_API_KEY
 
 
-# def get_index_forms(request: WSGIRequest) -> \
-#         dict[str, Union[SecuritiesCreateForm, SecuritiesDeleteForm, SecuritiesIncreaseQuantityForm]]:
-#     form_creating = SecuritiesCreateForm()
-#     form_deleting = SecuritiesDeleteForm()
-#     form_increasing = SecuritiesIncreaseQuantityForm()
-#
-#     if request.method == 'POST':
-#         if 'update_graph' in request.POST:
-#             update_graph()
-#         elif 'create_security' in request.POST:
-#             form_creating = create_security(request.POST)
-#         elif 'delete_security' in request.POST:
-#             form_deleting = delete_security(request.POST)
-#         elif 'increase_security' in request.POST:
-#             form_increasing = increase_security(request.POST)
-#
-#     return {'form_creating': form_creating, 'form_deleting': form_deleting, 'form_increasing': form_increasing}
-#
-#
-# def create_security(post: QueryDict) -> SecuritiesCreateForm:
-#     form_creating = SecuritiesCreateForm(post)
-#     if form_creating.is_valid():
-#         form_creating.save()
-#         form_creating = SecuritiesCreateForm()
-#     return form_creating
-#
-#
-# def delete_security(post: QueryDict) -> SecuritiesDeleteForm:
-#     form_deleting = SecuritiesDeleteForm(post)
-#     if form_deleting.is_valid():
-#         security = form_deleting.cleaned_data['field']
-#         security.delete()
-#         form_deleting = SecuritiesDeleteForm()
-#     return form_deleting
-#
-#
-# def increase_security(post: QueryDict) -> SecuritiesIncreaseQuantityForm:
-#     form_increasing = SecuritiesIncreaseQuantityForm(post)
-#     if form_increasing.is_valid():
-#         security = form_increasing.cleaned_data['field']
-#         increment = int(form_increasing.cleaned_data['quantity'])
-#         if security.quantity + increment > 0:
-#             security.quantity += increment
-#         security.save()
-#         form_increasing = SecuritiesIncreaseQuantityForm()
-#     return form_increasing
+def get_portfolio_forms(portfolio: Portfolio, request: WSGIRequest) -> \
+        dict[str, Union[SecuritiesCreateForm, SecuritiesDeleteForm, SecuritiesIncreaseQuantityForm]]:
+    form_creating = SecuritiesCreateForm()
+    form_deleting = SecuritiesDeleteForm(portfolio)
+    form_increasing = SecuritiesIncreaseQuantityForm(portfolio)
+    # TODO: add redirect after POST save() to prevent another exactly POST through refresh page
+
+    if request.method == 'POST':
+        if 'create_security' in request.POST:
+            form_creating = create_security(portfolio, request.POST)
+        elif 'delete_security' in request.POST:
+            form_deleting = delete_security(portfolio, request.POST)
+        elif 'increase_security' in request.POST:
+            form_increasing = increase_security(portfolio, request.POST)
+
+    return {'form_creating': form_creating, 'form_deleting': form_deleting, 'form_increasing': form_increasing}
 
 
-# def get_graph_if_exist_or_create(portfolio: Portfolio):
-#
-#
-#     ImageFieldFile
-#     try:
-#         portfolio.graph.size
-#     except PieGraph.DoesNotExist:
-#         update_graph()
-#         graph = PieGraph(pk=1, graph=ImageFieldFile(instance=None, name=GRAPH_NAME, field=FileField()))
-#         graph.save()
-#         print('$$ create new PieGraph')
-#     return None
+def create_security(portfolio: Portfolio, post: QueryDict):
+    # TODO: bug: can add security to portfolio item if it in already.
+    # But adding create other object and it will displaying as other part of pie.
+    # Need to delete possibility adding existing security to portfolio
+    form_creating = SecuritiesCreateForm(post)
+    if form_creating.is_valid():
+        security = form_creating.cleaned_data['security_select']
+        quantity = int(form_creating.cleaned_data['quantity'])
+        if quantity > 0:
+            item = PortfolioItem(portfolio=portfolio, security=security, quantity=quantity)
+            item.save()
+        form_creating = SecuritiesCreateForm()
+        return form_creating
 
 
-# def get_formatted_securities_list() -> list[tuple[str, Decimal, str]]:
-#     securities_list = get_all_securities()
-#     result = []
-#     for row in securities_list:
-#         cost = Decimal(row.price * row.quantity).quantize(Decimal('1.01'), rounding=ROUND_HALF_UP)
-#         result.append((row.ticker, cost, row.currency))
-#     return result
+def delete_security(portfolio: Portfolio, post: QueryDict):
+    form_deleting = SecuritiesDeleteForm(portfolio, post)
+    if form_deleting.is_valid():
+        item = form_deleting.cleaned_data['field']
+        item.delete()
+        form_deleting = SecuritiesDeleteForm(portfolio)
+        return form_deleting
+
+
+def increase_security(portfolio: Portfolio, post: QueryDict):
+    form_increasing = SecuritiesIncreaseQuantityForm(portfolio, post)
+    if form_increasing.is_valid():
+        item = form_increasing.cleaned_data['field']
+        increment = int(form_increasing.cleaned_data['quantity'])
+        if item.quantity + increment > 0:
+            item.quantity += increment
+        item.save()
+        form_increasing = SecuritiesIncreaseQuantityForm(portfolio)
+        return form_increasing
+
+
+def get_formatted_securities_list(portfolio: Portfolio) -> list[tuple[str, Decimal, str]]:
+    items = get_all_portfolio_items(portfolio)
+    securities = []
+    for row in items:
+        cost = Decimal(row.security.price * row.quantity).quantize(Decimal('1.01'), rounding=ROUND_HALF_UP)
+        securities.append((row.security.ticker, cost, row.security.currency))
+    return securities
+
+
+def get_all_portfolio_items(portfolio: Portfolio) -> list[PortfolioItem]:
+    return portfolio.portfolioitem_set.all()
 
 
 def update_portfolio_graph(portfolio: Portfolio) -> None:
@@ -96,12 +92,8 @@ def update_portfolio_graph(portfolio: Portfolio) -> None:
     plt.savefig(graph_path.graph_full_path)
 
 
-def get_all_securities() -> list[Securities]:
-    return Securities.objects.all()
-
-
 def update_graph_data(portfolio: Portfolio) -> tuple[list[Decimal], list[str]]:
-    items = portfolio.portfolioitem_set.all()
+    items = get_all_portfolio_items(portfolio)
     rate = get_last_exchange_rate()
     cost = []
     labels = []

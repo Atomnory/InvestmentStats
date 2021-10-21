@@ -39,7 +39,7 @@ class Securities(models.Model):
         ordering = ['ticker']
 
     def __str__(self):
-        return self.ticker
+        return self.name
 
     def get_full_name(self):
         return self.name
@@ -65,5 +65,5 @@ class PortfolioItem(models.Model):
     security = models.ForeignKey(Securities, on_delete=models.CASCADE)
     quantity = models.IntegerField('Quantity')
 
-
-
+    def __str__(self):
+        return self.security.name
