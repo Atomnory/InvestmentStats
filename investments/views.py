@@ -1,6 +1,6 @@
 from django.shortcuts import render, get_object_or_404, redirect
 
-from .services import update_portfolio_graph, GraphPath, get_portfolio_forms, get_formatted_securities_list
+from .services import update_portfolio_graph, GraphPath, get_empty_portfolio_forms, get_formatted_securities_list, fill_portfolio_forms
 
 from django.contrib.auth.models import User
 from .models import Portfolio, PortfolioItem, Securities
@@ -42,7 +42,9 @@ def portfolio_page(request, portfolio_pk):
     portfolio = get_object_or_404(Portfolio, pk=portfolio_pk)
 
     if portfolio.investor == request.user:
-        forms = get_portfolio_forms(portfolio, request)
+        forms = get_empty_portfolio_forms(portfolio)
+        if request.method == 'POST':
+            return fill_portfolio_forms(portfolio, request)
         update_portfolio_graph(portfolio)
         graph = portfolio.graph
         securities = get_formatted_securities_list(portfolio)

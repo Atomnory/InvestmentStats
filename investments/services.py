@@ -9,29 +9,30 @@ from django.db.models.fields.files import ImageFieldFile, FileField
 from django.http.request import QueryDict
 from django.core.handlers.wsgi import WSGIRequest
 
-# from config.settings import GRAPH_NAME, GRAPH_PATH,
 from .models import Securities, ExchangeRate, Portfolio, PortfolioItem
 from .forms import SecuritiesCreateForm, SecuritiesDeleteForm, SecuritiesIncreaseQuantityForm
 import os
 from config.settings import MEDIA_ROOT, EXCHANGE_API_KEY
 
 
-def get_portfolio_forms(portfolio: Portfolio, request: WSGIRequest) -> \
+def get_empty_portfolio_forms(portfolio: Portfolio) -> \
         dict[str, Union[SecuritiesCreateForm, SecuritiesDeleteForm, SecuritiesIncreaseQuantityForm]]:
     form_creating = SecuritiesCreateForm()
     form_deleting = SecuritiesDeleteForm(portfolio)
     form_increasing = SecuritiesIncreaseQuantityForm(portfolio)
-    # TODO: add redirect after POST save() to prevent another exactly POST through refresh page
 
-    if request.method == 'POST':
-        if 'create_security' in request.POST:
-            form_creating = create_security(portfolio, request.POST)
-        elif 'delete_security' in request.POST:
-            form_deleting = delete_security(portfolio, request.POST)
-        elif 'increase_security' in request.POST:
-            form_increasing = increase_security(portfolio, request.POST)
+    return {'form_creating': form_creating,
+            'form_deleting': form_deleting,
+            'form_increasing': form_increasing}
 
-    return {'form_creating': form_creating, 'form_deleting': form_deleting, 'form_increasing': form_increasing}
+
+def fill_portfolio_forms(portfolio: Portfolio, request: WSGIRequest):
+    if 'create_security' in request.POST:
+        return create_security(portfolio, request.POST)
+    elif 'delete_security' in request.POST:
+        return delete_security(portfolio, request.POST)
+    elif 'increase_security' in request.POST:
+        return increase_security(portfolio, request.POST)
 
 
 def create_security(portfolio: Portfolio, post: QueryDict):
@@ -45,8 +46,7 @@ def create_security(portfolio: Portfolio, post: QueryDict):
         if quantity > 0:
             item = PortfolioItem(portfolio=portfolio, security=security, quantity=quantity)
             item.save()
-        form_creating = SecuritiesCreateForm()
-        return form_creating
+        return redirect('portfolio', portfolio_pk=portfolio.pk)
 
 
 def delete_security(portfolio: Portfolio, post: QueryDict):
@@ -54,8 +54,7 @@ def delete_security(portfolio: Portfolio, post: QueryDict):
     if form_deleting.is_valid():
         item = form_deleting.cleaned_data['field']
         item.delete()
-        form_deleting = SecuritiesDeleteForm(portfolio)
-        return form_deleting
+        return redirect('portfolio', portfolio_pk=portfolio.pk)
 
 
 def increase_security(portfolio: Portfolio, post: QueryDict):
@@ -66,8 +65,7 @@ def increase_security(portfolio: Portfolio, post: QueryDict):
         if item.quantity + increment > 0:
             item.quantity += increment
         item.save()
-        form_increasing = SecuritiesIncreaseQuantityForm(portfolio)
-        return form_increasing
+        return redirect('portfolio', portfolio_pk=portfolio.pk)
 
 
 def get_formatted_securities_list(portfolio: Portfolio) -> list[tuple[str, Decimal, str]]:
