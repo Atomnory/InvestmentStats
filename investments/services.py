@@ -1,5 +1,5 @@
 import datetime
-from typing import Union
+from typing import Union, Optional
 from decimal import Decimal, ROUND_HALF_UP
 from django.shortcuts import redirect
 
@@ -8,16 +8,46 @@ import requests
 from django.db.models.fields.files import ImageFieldFile, FileField
 from django.http.request import QueryDict
 from django.core.handlers.wsgi import WSGIRequest
+from django.http import HttpResponseRedirect, HttpResponsePermanentRedirect
+from django.utils.functional import SimpleLazyObject
 
 from .models import Securities, ExchangeRate, Portfolio, PortfolioItem
 from .forms import SecuritiesCreateForm, SecuritiesDeleteForm, SecuritiesIncreaseQuantityForm
+from .forms import PortfolioCreateForm
 import os
 from config.settings import MEDIA_ROOT, EXCHANGE_API_KEY
 
 
-def get_empty_portfolio_forms(portfolio: Portfolio) -> \
-        dict[str, Union[SecuritiesCreateForm, SecuritiesDeleteForm, SecuritiesIncreaseQuantityForm]]:
-    form_creating = SecuritiesCreateForm()
+def get_user_portfolios_list(user: SimpleLazyObject) -> list[Portfolio]:
+    return user.portfolio_set.all()
+
+
+def get_empty_index_form() -> PortfolioCreateForm:
+    return PortfolioCreateForm()
+
+
+def create_portfolio(request: WSGIRequest) \
+        -> Optional[Union[HttpResponsePermanentRedirect, HttpResponseRedirect]]:
+    form_creating = PortfolioCreateForm(request.POST)
+    if form_creating.is_valid():
+        new_portfolio = form_creating.save(commit=False)
+        new_portfolio.investor = request.user
+        new_portfolio.save()
+        graph_path = GraphPath(new_portfolio.pk).graph_path
+        new_portfolio.graph = ImageFieldFile(instance=None, name=graph_path, field=FileField())
+        new_portfolio.save()
+        return redirect('index')
+
+
+def delete_portfolio(portfolio: Portfolio) \
+        -> Optional[Union[HttpResponsePermanentRedirect, HttpResponseRedirect]]:
+    portfolio.delete()
+    return redirect('index')
+
+
+def get_empty_portfolio_forms(portfolio: Portfolio) \
+        -> dict[str, Union[SecuritiesCreateForm, SecuritiesDeleteForm, SecuritiesIncreaseQuantityForm]]:
+    form_creating = SecuritiesCreateForm(portfolio)
     form_deleting = SecuritiesDeleteForm(portfolio)
     form_increasing = SecuritiesIncreaseQuantityForm(portfolio)
 
@@ -26,7 +56,8 @@ def get_empty_portfolio_forms(portfolio: Portfolio) -> \
             'form_increasing': form_increasing}
 
 
-def fill_portfolio_forms(portfolio: Portfolio, request: WSGIRequest):
+def fill_portfolio_forms(portfolio: Portfolio, request: WSGIRequest) \
+        -> Optional[Union[HttpResponsePermanentRedirect, HttpResponseRedirect]]:
     if 'create_security' in request.POST:
         return create_security(portfolio, request.POST)
     elif 'delete_security' in request.POST:
@@ -35,11 +66,9 @@ def fill_portfolio_forms(portfolio: Portfolio, request: WSGIRequest):
         return increase_security(portfolio, request.POST)
 
 
-def create_security(portfolio: Portfolio, post: QueryDict):
-    # TODO: bug: can add security to portfolio item if it in already.
-    # But adding create other object and it will displaying as other part of pie.
-    # Need to delete possibility adding existing security to portfolio
-    form_creating = SecuritiesCreateForm(post)
+def create_security(portfolio: Portfolio, post: QueryDict) \
+        -> Optional[Union[HttpResponsePermanentRedirect, HttpResponseRedirect]]:
+    form_creating = SecuritiesCreateForm(portfolio, post)
     if form_creating.is_valid():
         security = form_creating.cleaned_data['security_select']
         quantity = int(form_creating.cleaned_data['quantity'])
@@ -49,7 +78,8 @@ def create_security(portfolio: Portfolio, post: QueryDict):
         return redirect('portfolio', portfolio_pk=portfolio.pk)
 
 
-def delete_security(portfolio: Portfolio, post: QueryDict):
+def delete_security(portfolio: Portfolio, post: QueryDict) \
+        -> Optional[Union[HttpResponsePermanentRedirect, HttpResponseRedirect]]:
     form_deleting = SecuritiesDeleteForm(portfolio, post)
     if form_deleting.is_valid():
         item = form_deleting.cleaned_data['field']
@@ -57,7 +87,8 @@ def delete_security(portfolio: Portfolio, post: QueryDict):
         return redirect('portfolio', portfolio_pk=portfolio.pk)
 
 
-def increase_security(portfolio: Portfolio, post: QueryDict):
+def increase_security(portfolio: Portfolio, post: QueryDict) \
+        -> Optional[Union[HttpResponsePermanentRedirect, HttpResponseRedirect]]:
     form_increasing = SecuritiesIncreaseQuantityForm(portfolio, post)
     if form_increasing.is_valid():
         item = form_increasing.cleaned_data['field']

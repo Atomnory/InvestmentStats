@@ -1,0 +1,14 @@
+{% extends 'investments/layout.html' %}
+{% load crispy_forms_tags %}
+
+{% block Title %}Delete portfolio{% endblock %}
+
+{% block BodyContent %}
+    <h2>Do you want to delete {{ portfolio.name }} ?</h2>
+    <div class="delete-portfolio">
+        <form method="post">
+            {% csrf_token %}
+            <button class="btn btn-danger" type="submit" name="delete-portfolio">Delete portfolio</button>
+        </form>
+    </div>
+{% endblock %}

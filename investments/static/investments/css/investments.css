@@ -58,6 +58,10 @@ body {
     flex: 1;
 }
 
+.column a {
+    padding: 10px;
+}
+
 .row button {
 
 }
@@ -76,7 +80,12 @@ body {
 
 .create-portfolio {
     padding: 10px;
-    width: 60%;
+    max-width: 500px;
+}
+
+.delete-portfolio {
+    padding: 10px;
+    max-width: 500px;
 }
 
 .create-security {

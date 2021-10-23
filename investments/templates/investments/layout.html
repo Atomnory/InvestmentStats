@@ -11,6 +11,7 @@
 <body>
     <div class="page">
         <header class="header">
+            <a href="{% url 'index' %}">Index</a>
             <a href="{% url 'admin:index' %}">Admin panel</a>
             {% if user.is_authenticated %}
                 <a class="header_link" href="{% url 'logout' %}">Logout</a>
