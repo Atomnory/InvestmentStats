@@ -2,6 +2,7 @@ import datetime
 from typing import Union, Optional
 from decimal import Decimal, ROUND_HALF_UP
 from django.shortcuts import redirect
+import shutil
 
 import matplotlib.pyplot as plt
 import requests
@@ -41,6 +42,7 @@ def create_portfolio(request: WSGIRequest) \
 
 def delete_portfolio(portfolio: Portfolio) \
         -> Optional[Union[HttpResponsePermanentRedirect, HttpResponseRedirect]]:
+    shutil.rmtree(GraphPath(portfolio.pk).graph_full_root, ignore_errors=True)
     portfolio.delete()
     return redirect('index')
 
@@ -59,11 +61,14 @@ def get_empty_portfolio_forms(portfolio: Portfolio) \
 def fill_portfolio_forms(portfolio: Portfolio, request: WSGIRequest) \
         -> Optional[Union[HttpResponsePermanentRedirect, HttpResponseRedirect]]:
     if 'create_security' in request.POST:
-        return create_security(portfolio, request.POST)
+        response = create_security(portfolio, request.POST)
     elif 'delete_security' in request.POST:
-        return delete_security(portfolio, request.POST)
+        response = delete_security(portfolio, request.POST)
     elif 'increase_security' in request.POST:
-        return increase_security(portfolio, request.POST)
+        response = increase_security(portfolio, request.POST)
+
+    update_portfolio_graph(portfolio)
+    return response
 
 
 def create_security(portfolio: Portfolio, post: QueryDict) \

@@ -2,7 +2,7 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 
 from .models import Portfolio
-from .services import update_portfolio_graph, get_empty_portfolio_forms, delete_portfolio, fill_portfolio_forms
+from .services import get_empty_portfolio_forms, delete_portfolio, fill_portfolio_forms
 from .services import get_user_portfolios_list, get_empty_index_form, create_portfolio, get_formatted_securities_list
 
 
@@ -33,8 +33,6 @@ def portfolio_page(request, portfolio_pk):
         forms = get_empty_portfolio_forms(portfolio)
         if request.method == 'POST':
             return fill_portfolio_forms(portfolio, request)
-        # TODO: fix update graph that updating will only after portfolio changes, not after page refresh
-        update_portfolio_graph(portfolio)
         graph = portfolio.graph
         securities = get_formatted_securities_list(portfolio)
 
@@ -58,7 +56,6 @@ def delete_portfolio_page(request, portfolio_pk):
     if portfolio.investor == request.user:
         if request.method == 'POST' and 'delete-portfolio' in request.POST:
             return delete_portfolio(portfolio)
-
         deleting_portfolio_data = {
             'portfolio': portfolio
         }
