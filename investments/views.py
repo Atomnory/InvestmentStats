@@ -1,9 +1,10 @@
 from django.shortcuts import render, get_object_or_404, redirect
-from django.contrib.auth.decorators import login_required
+from django.contrib.auth.decorators import login_required, user_passes_test
 
 from .models import Portfolio
 from .services import get_empty_portfolio_forms, delete_portfolio, fill_portfolio_forms
 from .services import get_user_portfolios_list, get_empty_index_form, create_portfolio, get_formatted_securities_list
+from .tinkoff_client import get_etfs, get_bonds
 
 
 def index_page(request):
@@ -63,3 +64,20 @@ def delete_portfolio_page(request, portfolio_pk):
         return render(request, 'investments/delete_portfolio.html', deleting_portfolio_data)
     else:
         return redirect('index')
+
+
+@user_passes_test(lambda u: u.is_superuser)
+def superuser_dashboard(request):
+
+    if request.method == 'POST':
+        if 'create-etfs' in request.POST:
+            get_etfs()
+        elif 'create-bonds' in request.POST:
+            get_bonds()
+        return redirect('superuser_dashboard')
+
+    superuser_dashboard_data = {
+        'user': request.user
+    }
+
+    return render(request, 'investments/superuser_dashboard.html', superuser_dashboard_data)

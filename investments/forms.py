@@ -1,14 +1,14 @@
 from django import forms
-from .models import PortfolioItem, Portfolio, Securities
+from .models import PortfolioItem, Portfolio, Security
 
 
 class SecuritiesCreateForm(forms.ModelForm):
-    security_select = forms.ModelChoiceField(queryset=Securities.objects.all(), empty_label='Choose security')
+    security_select = forms.ModelChoiceField(queryset=Security.objects.all(), empty_label='Choose security')
 
     def __init__(self, portfolio: Portfolio, *args, **kwargs):
         super(SecuritiesCreateForm, self).__init__(*args, **kwargs)
         exclusion_list = [x.security.pk for x in PortfolioItem.objects.filter(portfolio=portfolio)]
-        self.fields['security_select'].queryset = Securities.objects.all().exclude(pk__in=exclusion_list)
+        self.fields['security_select'].queryset = Security.objects.all().exclude(pk__in=exclusion_list)
 
     class Meta:
         model = PortfolioItem

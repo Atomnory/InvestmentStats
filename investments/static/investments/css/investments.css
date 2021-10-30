@@ -88,6 +88,10 @@ body {
     max-width: 500px;
 }
 
+.create-secs {
+    padding: 10px;
+}
+
 .create-security {
     padding: 10px;
 }

@@ -1,0 +1,18 @@
+{% extends 'investments/layout.html' %}
+
+{% block Title %}Superuser Dashboard{% endblock %}
+
+{% block BodyContent %}
+    <div class="create-secs">
+        <form method="post">
+            {% csrf_token %}
+            <button class="btn btn-warning" type="submit" name="create-etfs">Create etfs</button>
+        </form>
+    </div>
+    <div class="create-secs">
+        <form method="post">
+            {% csrf_token %}
+            <button class="btn btn-warning" type="submit" name="create-bonds">Create bonds</button>
+        </form>
+    </div>
+{% endblock %}

@@ -12,7 +12,7 @@ from django.core.handlers.wsgi import WSGIRequest
 from django.http import HttpResponseRedirect, HttpResponsePermanentRedirect
 from django.utils.functional import SimpleLazyObject
 
-from .models import Securities, ExchangeRate, Portfolio, PortfolioItem
+from .models import Security, ExchangeRate, Portfolio, PortfolioItem
 from .forms import SecuritiesCreateForm, SecuritiesDeleteForm, SecuritiesIncreaseQuantityForm
 from .forms import PortfolioCreateForm
 import os
@@ -135,9 +135,11 @@ def update_graph_data(portfolio: Portfolio) -> tuple[list[Decimal], list[str]]:
         if row.security.currency == 'USD':
             cost.append(row.security.price * row.quantity)
         elif row.security.currency == 'EUR':
-            cost.append((row.security.price / rate.eur_rate) * row.quantity)
+            eur_rate = Decimal(rate.eur_rate).quantize(Decimal('1.01'), rounding=ROUND_HALF_UP)
+            cost.append((row.security.price / eur_rate) * row.quantity)
         elif row.security.currency == 'RUB':
-            cost.append((row.security.price / rate.rub_rate) * row.quantity)
+            rub_rate = Decimal(rate.rub_rate).quantize(Decimal('1.01'), rounding=ROUND_HALF_UP)
+            cost.append((row.security.price / rub_rate) * row.quantity)
         labels.append(row.security.ticker)
 
     print('$$ update graph')

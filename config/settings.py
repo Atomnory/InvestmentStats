@@ -132,6 +132,8 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 MEDIA_URL = '/media/'
 
 EXCHANGE_API_KEY = os.getenv('EXCHANGE_RATE_API_KEY')
+TINVEST_TOKEN = os.getenv('TINVEST_TOKEN')
+
 
 LOGIN_REDIRECT_URL = 'index'
 LOGOUT_REDIRECT_URL = 'index'

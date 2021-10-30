@@ -2,7 +2,7 @@ from django.db import models
 from django.contrib.auth.models import User
 
 
-class Securities(models.Model):
+class Security(models.Model):
     currency_choice = (
         ('EUR', 'EUR'),
         ('RUB', 'RUB'),
@@ -27,7 +27,7 @@ class Securities(models.Model):
         ('UTIL', 'Utilities')
     )
 
-    ticker = models.CharField('Ticker', max_length=10)
+    ticker = models.CharField('Ticker', max_length=16, unique=True)
     name = models.CharField('Name', max_length=100)
     price = models.DecimalField('Price', max_digits=12, decimal_places=4)
     currency = models.CharField('Currency', max_length=3, choices=currency_choice)
@@ -62,7 +62,7 @@ class Portfolio(models.Model):
 
 class PortfolioItem(models.Model):
     portfolio = models.ForeignKey(Portfolio, on_delete=models.CASCADE)
-    security = models.ForeignKey(Securities, on_delete=models.CASCADE)
+    security = models.ForeignKey(Security, on_delete=models.CASCADE)
     quantity = models.IntegerField('Quantity')
 
     def __str__(self):
