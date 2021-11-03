@@ -4,7 +4,7 @@ from django.contrib.auth.decorators import login_required, user_passes_test
 from .models import Portfolio
 from .services import get_empty_portfolio_forms, delete_portfolio, fill_portfolio_forms
 from .services import get_user_portfolios_list, get_empty_index_form, create_portfolio, get_formatted_securities_list
-from .tinkoff_client import get_etfs, get_bonds
+from .tinkoff_client import get_etfs, get_bonds, define_stock_sector_and_country
 
 
 def index_page(request):
@@ -74,6 +74,8 @@ def superuser_dashboard(request):
             get_etfs()
         elif 'create-bonds' in request.POST:
             get_bonds()
+        elif 'fill-info' in request.POST:
+            define_stock_sector_and_country()
         return redirect('superuser_dashboard')
 
     superuser_dashboard_data = {

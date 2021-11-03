@@ -31,8 +31,8 @@ class Security(models.Model):
     name = models.CharField('Name', max_length=100)
     price = models.DecimalField('Price', max_digits=12, decimal_places=4)
     currency = models.CharField('Currency', max_length=3, choices=currency_choice)
-    sector = models.CharField('Sector', max_length=20, choices=sector_choice)
-    country = models.CharField('Country', max_length=20)
+    sector = models.CharField('Sector', max_length=20, choices=sector_choice, null=True)
+    country = models.CharField('Country', max_length=20, null=True)
     update_date = models.DateField('Last update', auto_now=True)
 
     class Meta:

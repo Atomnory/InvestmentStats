@@ -148,3 +148,5 @@ cython_debug/
 
 /*/migrations/
 *.png
+/media/fill_stock_date.txt
+/media/not_finded_stocks.txt

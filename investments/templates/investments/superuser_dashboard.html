@@ -15,4 +15,10 @@
             <button class="btn btn-warning" type="submit" name="create-bonds">Create bonds</button>
         </form>
     </div>
+    <div class="create-secs">
+        <form method="post">
+            {% csrf_token %}
+            <button class="btn btn-success" type="submit" name="fill-info">Fill sector and country info</button>
+        </form>
+    </div>
 {% endblock %}
