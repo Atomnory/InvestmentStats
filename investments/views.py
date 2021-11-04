@@ -68,14 +68,26 @@ def delete_portfolio_page(request, portfolio_pk):
 
 @user_passes_test(lambda u: u.is_superuser)
 def superuser_dashboard(request):
+    # if queryset(not_found_on_market = True):
+    # render SecurityFillInformationForm(the Security object from queryset)
 
     if request.method == 'POST':
         if 'create-etfs' in request.POST:
             get_etfs()
         elif 'create-bonds' in request.POST:
             get_bonds()
-        elif 'fill-info' in request.POST:
+        elif 'define-info' in request.POST:
             define_stock_sector_and_country()
+        # elif 'fill-info' in request.POST:
+            # fill SecurityFillInformationForm()
+            # if form.is_valid():
+            # obj = the exact Security object from queryset
+            # obj.sector = form.cleaned_data['sector']
+            # obj.country = form.cleaned_date['country']
+            # obj.save()
+            # obj delete from queryset
+            # TODO: examine possibility to eliminate reloading queryset after post 'fill-info'
+            # Every reloading superuser_dashboard will query set of securities not found on market.
         return redirect('superuser_dashboard')
 
     superuser_dashboard_data = {

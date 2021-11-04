@@ -3,22 +3,26 @@
 {% block Title %}Superuser Dashboard{% endblock %}
 
 {% block BodyContent %}
-    <div class="create-secs">
-        <form method="post">
-            {% csrf_token %}
-            <button class="btn btn-warning" type="submit" name="create-etfs">Create etfs</button>
-        </form>
+<div class="row">
+    <div class="column">
+        <div class="create-secs">
+            <form method="post">
+                {% csrf_token %}
+                <button class="btn btn-warning" type="submit" name="create-etfs">Create etfs</button>
+            </form>
+            <form method="post">
+                {% csrf_token %}
+                <button class="btn btn-warning" type="submit" name="create-bonds">Create bonds</button>
+            </form>
+        </div>
     </div>
-    <div class="create-secs">
-        <form method="post">
-            {% csrf_token %}
-            <button class="btn btn-warning" type="submit" name="create-bonds">Create bonds</button>
-        </form>
+    <div class="column">
+       <div class="fill-secs">
+            <form method="post">
+                {% csrf_token %}
+                <button class="btn btn-success" type="submit" name="define-info">Fill sector and country info</button>
+            </form>
+        </div>
     </div>
-    <div class="create-secs">
-        <form method="post">
-            {% csrf_token %}
-            <button class="btn btn-success" type="submit" name="fill-info">Fill sector and country info</button>
-        </form>
-    </div>
+</div>
 {% endblock %}

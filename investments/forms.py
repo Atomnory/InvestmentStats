@@ -6,7 +6,7 @@ class SecuritiesCreateForm(forms.ModelForm):
     security_select = forms.ModelChoiceField(queryset=Security.objects.all(), empty_label='Choose security')
 
     def __init__(self, portfolio: Portfolio, *args, **kwargs):
-        super(SecuritiesCreateForm, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         exclusion_list = [x.security.pk for x in PortfolioItem.objects.filter(portfolio=portfolio)]
         self.fields['security_select'].queryset = Security.objects.all().exclude(pk__in=exclusion_list)
 
@@ -19,7 +19,7 @@ class SecuritiesDeleteForm(forms.ModelForm):
     field = forms.ModelChoiceField(queryset=PortfolioItem.objects.all(), empty_label='Choose security')
 
     def __init__(self, portfolio: Portfolio, *args, **kwargs):
-        super(SecuritiesDeleteForm, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.fields['field'].queryset = PortfolioItem.objects.filter(portfolio=portfolio)
 
     class Meta:
@@ -31,7 +31,7 @@ class SecuritiesIncreaseQuantityForm(forms.ModelForm):
     field = forms.ModelChoiceField(queryset=PortfolioItem.objects.all(), empty_label='Choose security')
 
     def __init__(self, portfolio: Portfolio, *args, **kwargs):
-        super(SecuritiesIncreaseQuantityForm, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.fields['field'].queryset = PortfolioItem.objects.filter(portfolio=portfolio)
 
     class Meta:
@@ -43,3 +43,16 @@ class PortfolioCreateForm(forms.ModelForm):
     class Meta:
         model = Portfolio
         fields = ['name']
+
+
+# TODO: add using formset
+class SecurityFillInformationForm(forms.ModelForm):
+    def __init__(self, security: Security, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['ticker'].initial = security.ticker
+        self.fields['name'].initial = security.name
+
+    class Meta:
+        model = Security
+        fields = ['ticker', 'name', 'sector', 'country']
+    # TODO: add HiddenInput widget

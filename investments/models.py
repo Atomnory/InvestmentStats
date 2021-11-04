@@ -33,7 +33,8 @@ class Security(models.Model):
     currency = models.CharField('Currency', max_length=3, choices=currency_choice)
     sector = models.CharField('Sector', max_length=20, choices=sector_choice, null=True)
     country = models.CharField('Country', max_length=20, null=True)
-    update_date = models.DateField('Last update', auto_now=True)
+    not_found_on_market = models.BooleanField('Is not found on market?', default=False)
+    last_updated = models.DateField('Last update', auto_now=True)
 
     class Meta:
         ordering = ['ticker']
@@ -46,7 +47,7 @@ class Security(models.Model):
 
 
 class ExchangeRate(models.Model):
-    last_update_date = models.DateField('Last update', auto_now=True)
+    last_updated = models.DateField('Last update', auto_now=True)
     eur_rate = models.DecimalField('EUR rate', max_digits=10, decimal_places=4)
     rub_rate = models.DecimalField('RUB rate', max_digits=10, decimal_places=4)
 

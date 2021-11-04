@@ -163,14 +163,14 @@ def get_exchange_rate_object() -> ExchangeRate:
 def create_exchange_rate() -> ExchangeRate:
     today = get_today()
     rates_data = get_conversion_rates()
-    rate = ExchangeRate(pk=1, last_update_date=today, eur_rate=rates_data['EUR'], rub_rate=rates_data['RUB'])
+    rate = ExchangeRate(pk=1, last_updated=today, eur_rate=rates_data['EUR'], rub_rate=rates_data['RUB'])
     print('$$ create new ExchangeRate')
     rate.save()
     return rate
 
 
 def update_exchange_rate(ex_rate: ExchangeRate) -> ExchangeRate:
-    if ex_rate.last_update_date != get_today():
+    if ex_rate.last_updated != get_today():
         print('$$ Exchange rate is expired. Getting update.')
         rates_data = get_conversion_rates()
         ex_rate.eur_rate = rates_data['EUR']

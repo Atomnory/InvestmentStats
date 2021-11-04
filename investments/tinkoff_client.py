@@ -83,7 +83,8 @@ def save_securities(client: SyncClient, instruments: list):
                 price=orderbook.payload.close_price,
                 currency=row['currency'].value,
                 sector=sec_sector,
-                country=None
+                country=None,
+                not_found_on_market=False
             )
             sec.save()
         except Exception as e:
@@ -109,7 +110,7 @@ def save_securities(client: SyncClient, instruments: list):
     # sector = models.CharField('Sector', max_length=20, choices=sector_choice)
     # country = models.CharField('Country', max_length=20)
     # update_date = models.DateField('Last update', auto_now=True)
-
+# TODO: add update Security price
 
 def get_error():
     client = SyncClient(TINVEST_TOKEN)
@@ -126,10 +127,9 @@ class StockNotFound(Exception):
 def define_stock_sector_and_country():
     if not can_fill_stock_info():
         return
-    stocks = get_list_all_stocks_without_country_and_sector()
+    stocks = get_list_all_stocks_without_country_and_sector_and_not_found()
     if not stocks:
         return
-    not_find = []
     for row in stocks:
         new_ticker = define_ticker_by_currency(row.ticker, row.currency)
         try:
@@ -148,23 +148,21 @@ def define_stock_sector_and_country():
             break
         except StockNotFound as e:
             print(e)
-            not_find.append(row.ticker)
+            row.not_found_on_market = True
+            row.save()
             continue
         except Exception as e:
             print(e)
             break
-        new_sector = define_short_sector_name(sector)
+
+        row.sector = define_short_sector_name(sector)
         if row.currency == 'RUB':
-            new_country = 'Russia'
+            row.country = 'Russia'
         else:
-            new_country = country
-        row.sector = new_sector
-        row.country = new_country
+            row.country = country
         row.save()
 
     update_fill_stock_date()
-    if not_find:
-        save_not_finded_stocks(not_find)
 
 
 def get_stock_info_or_error(ticker: str) -> dict:
@@ -185,8 +183,8 @@ def get_stock_info_or_error(ticker: str) -> dict:
     return {'country': asset_profile['country'], 'sector': asset_profile['sector']}
 
 
-def get_list_all_stocks_without_country_and_sector() -> Optional[list[Security]]:
-    return Security.objects.filter(country__isnull=True, sector__isnull=True)
+def get_list_all_stocks_without_country_and_sector_and_not_found() -> Optional[list[Security]]:
+    return Security.objects.filter(country__isnull=True, sector__isnull=True, not_found_on_market__exact=False)
 
 
 def define_ticker_by_currency(ticker: str, currency: str) -> str:
@@ -244,39 +242,3 @@ def update_fill_stock_date():
     today = datetime.utcnow().date()
     with open(f'{MEDIA_ROOT}/fill_stock_date.txt', 'w') as f:
         f.write(str(today))
-
-
-def save_not_finded_stocks(stocks: list[str]):
-    prevs = get_not_finded_stocks()
-    with open(f'{MEDIA_ROOT}/not_finded_stocks.txt', 'w') as f:
-        if prevs is None:
-                print(len(stocks), file=f)
-                for row in stocks:
-                    print(row, file=f)
-        else:
-                print(len(stocks) + len(prevs), file=f)
-                for row in prevs:
-                    print(row, file=f)
-                for row in stocks:
-                    print(row, file=f)
-
-
-def get_not_finded_stocks() -> Optional[list[str]]:
-    try:
-        stocks = []
-        with open(f'{MEDIA_ROOT}/not_finded_stocks.txt', 'r') as f:
-            f.readline()
-            for line in f.read().splitlines():
-                stocks.append(line)
-        return stocks
-    except FileNotFoundError:
-        return None
-
-
-def get_not_finded_quantity() -> int:
-    try:
-        with open(f'{MEDIA_ROOT}/not_finded_stocks.txt', 'r') as f:
-            quantity = f.readline()
-        return int(quantity)
-    except FileNotFoundError:
-        return 0
