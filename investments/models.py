@@ -31,8 +31,8 @@ class Security(models.Model):
     name = models.CharField('Name', max_length=100)
     price = models.DecimalField('Price', max_digits=12, decimal_places=4)
     currency = models.CharField('Currency', max_length=3, choices=currency_choice)
-    sector = models.CharField('Sector', max_length=20, choices=sector_choice, null=True)
-    country = models.CharField('Country', max_length=20, null=True)
+    sector = models.CharField('Sector', max_length=20, choices=sector_choice, null=True, blank=True)
+    country = models.CharField('Country', max_length=20, null=True, blank=True)
     not_found_on_market = models.BooleanField('Is not found on market?', default=False)
     last_updated = models.DateField('Last update', auto_now=True)
 

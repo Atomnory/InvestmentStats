@@ -1,28 +1,40 @@
 {% extends 'investments/layout.html' %}
+{% load crispy_forms_tags %}
 
 {% block Title %}Superuser Dashboard{% endblock %}
 
 {% block BodyContent %}
 <div class="row">
-    <div class="column">
-        <div class="create-secs">
-            <form method="post">
+   <div class="column">
+       <div class="create-secs">
+           <form method="post">
                 {% csrf_token %}
                 <button class="btn btn-warning" type="submit" name="create-etfs">Create etfs</button>
-            </form>
-            <form method="post">
+           </form>
+           <form method="post">
                 {% csrf_token %}
                 <button class="btn btn-warning" type="submit" name="create-bonds">Create bonds</button>
-            </form>
-        </div>
-    </div>
-    <div class="column">
+           </form>
+           <form method="post">
+                {% csrf_token %}
+                <button class="btn btn-warning" type="submit" name="create-stocks">Create stocks</button>
+           </form>
+       </div>
+   </div>
+   <div class="column">
        <div class="fill-secs">
-            <form method="post">
+           <form method="post">
                 {% csrf_token %}
                 <button class="btn btn-success" type="submit" name="define-info">Fill sector and country info</button>
-            </form>
-        </div>
-    </div>
+           </form>
+           {% if form_filling %}
+           <form method="post">
+               {% csrf_token %}
+               {{ form_filling|crispy }}
+               <button class="btn btn-info" type="submit" name="fill-info">Save info</button>
+           </form>
+           {% endif %}
+       </div>
+   </div>
 </div>
 {% endblock %}

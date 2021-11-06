@@ -7,6 +7,8 @@ from tinvest.exceptions import TooManyRequestsError, UnexpectedError
 from typing import Optional
 from datetime import datetime
 from dateutil.parser import parse
+from .forms import SecurityFillInformationForm
+from django.http.request import QueryDict
 
 
 def get_etfs():
@@ -22,7 +24,7 @@ def get_stocks():
     data = client.get_market_stocks()
     stocks = data.dict()
     instrs = stocks['payload']['instruments']
-    print_secs(client, instrs)
+    save_securities(client, instrs)
 
 
 def get_bonds():
@@ -31,6 +33,25 @@ def get_bonds():
     bonds = data.dict()
     instrs = bonds['payload']['instruments']
     save_securities(client, instrs)
+
+
+def get_not_found_stock_on_market() -> Optional[Security]:
+    return Security.objects.filter(not_found_on_market__exact=True).first()
+
+
+def get_empty_dashboard_form_or_none(not_found_security: Security) -> Optional[SecurityFillInformationForm]:
+    if not_found_security:
+        return SecurityFillInformationForm(not_found_security)
+    return None
+
+
+def save_not_found_stock_if_valid(not_found_stock: Security, post: QueryDict):
+    form_filling = SecurityFillInformationForm(not_found_stock, post)
+    if form_filling.is_valid():
+        not_found_stock.sector = form_filling.cleaned_data['sector']
+        not_found_stock.country = form_filling.cleaned_data['country']
+        not_found_stock.not_found_on_market = False
+        not_found_stock.save()
 
 
 def print_secs(client: SyncClient, instruments: list):
@@ -55,6 +76,7 @@ def save_securities(client: SyncClient, instruments: list):
     count = 0
     len_instr = len(instruments)
     for row in instruments:
+        new_ticker = get_normalized_ticker(row['ticker'], row['currency'].value)
         if count % 100 == 0:
             time.sleep(60)
         try:
@@ -66,58 +88,61 @@ def save_securities(client: SyncClient, instruments: list):
         except UnexpectedError as e:
             count += 1
             print(row)
-            print(count, '/', len_instr, '(' + str(row['ticker']) + ')', 'ERROR:', e)
+            print(count, '/', len_instr, '(' + str(new_ticker) + ')', 'market error.')
+            print('ERROR:', e)
             continue
-        sec_sector = 'CASH'
         if row['type'].value == 'Etf':
             sec_sector = 'ETF'
+            not_found = True
         elif row['type'].value == 'Bond':
             sec_sector = 'BOND'
+            not_found = True
         elif row['type'].value == 'Stock':
             sec_sector = None
-        # TODO: add sector and country filling by hand form
+            not_found = False
+        else:
+            sec_sector = None
+            not_found = True
         try:
             sec = Security(
-                ticker=row['ticker'],
+                ticker=new_ticker,
                 name=row['name'],
                 price=orderbook.payload.close_price,
                 currency=row['currency'].value,
                 sector=sec_sector,
                 country=None,
-                not_found_on_market=False
+                not_found_on_market=not_found
             )
             sec.save()
         except Exception as e:
             count += 1
             print(row)
-            print(count, '/', len_instr, '(' + str(row['ticker']) + ')', 'ERROR:', e)
+            print(count, '/', len_instr, '(' + str(new_ticker) + ')', 'saving error.')
+            print('ERROR:', e)
             continue
         count += 1
-        print(count, '/', len_instr, '(' + str(row['ticker']) + ')')
+        print(count, '/', len_instr, '(' + str(new_ticker) + ')')
 
 
-# ticker
-# name
-# (price from orderbook)
-# currency.value
-# sector - type.value (Etf)
-# country - ??
-
-    # ticker = models.CharField('Ticker', max_length=10, unique=True)
-    # name = models.CharField('Name', max_length=100)
-    # price = models.DecimalField('Price', max_digits=12, decimal_places=4)
-    # currency = models.CharField('Currency', max_length=3, choices=currency_choice)
-    # sector = models.CharField('Sector', max_length=20, choices=sector_choice)
-    # country = models.CharField('Country', max_length=20)
-    # update_date = models.DateField('Last update', auto_now=True)
 # TODO: add update Security price
-
-def get_error():
-    client = SyncClient(TINVEST_TOKEN)
-    searcher = client.get_market_search_by_figi('ISSUANCERESO')
-    price = client.get_market_orderbook('ISSUANCERESO', 1)
-    print(searcher)
-    print(price)
+def get_normalized_ticker(ticker: str, currency: str) -> str:
+    # BRK.B -> BRK-B
+    # LKOD@GS -> LKOD.IL
+    # PUMA@DE -> PUMA.DE
+    # MOEX -> MOEX.ME
+    # SPB@US -> SPB
+    if currency == 'USD':
+        if '.' in ticker:
+            return ticker.replace('.', '-')
+        elif '@GS' in ticker:
+            return ticker.replace('@GS', '.IL')
+        elif '@US' in ticker:
+            return ticker.replace('@US', '')
+        return ticker
+    elif currency == 'EUR':
+        return ticker.replace('@', '.')
+    elif currency == 'RUB':
+        return str(ticker) + '.ME'
 
 
 class StockNotFound(Exception):
@@ -126,20 +151,17 @@ class StockNotFound(Exception):
 
 def define_stock_sector_and_country():
     if not can_fill_stock_info():
+        print('YAHOO API is over-requested today')
         return
     stocks = get_list_all_stocks_without_country_and_sector_and_not_found()
     if not stocks:
+        print('Securities without sector and country are not exist')
         return
     for row in stocks:
-        new_ticker = define_ticker_by_currency(row.ticker, row.currency)
         try:
-            info = get_stock_info_or_error(ticker=new_ticker)
+            info = get_stock_info_or_error(ticker=row.ticker)
             country = info['country']
             sector = info['sector']
-            print('Ticker:', '$' + str(row.ticker) + ',',
-                  "'" + str(new_ticker) + "',",
-                  'country:', country,
-                  'sector:', sector)
         except requests.ConnectionError as e:
             print(e)
             break
@@ -161,6 +183,7 @@ def define_stock_sector_and_country():
         else:
             row.country = country
         row.save()
+        print('Ticker:', '$' + str(row.ticker) + ',', 'country:', row.country, 'sector:', row.sector)
 
     update_fill_stock_date()
 
@@ -178,22 +201,13 @@ def get_stock_info_or_error(ticker: str) -> dict:
     response.raise_for_status()
     data = response.json()['quoteSummary']['result']
     if data is None:
-        raise StockNotFound('Not found')
+        raise StockNotFound(f'Ticker: ${ticker} Not found')
     asset_profile = data[0]['assetProfile']
     return {'country': asset_profile['country'], 'sector': asset_profile['sector']}
 
 
 def get_list_all_stocks_without_country_and_sector_and_not_found() -> Optional[list[Security]]:
     return Security.objects.filter(country__isnull=True, sector__isnull=True, not_found_on_market__exact=False)
-
-
-def define_ticker_by_currency(ticker: str, currency: str) -> str:
-    if currency == 'USD':
-        return ticker
-    elif currency == 'EUR':
-        return str(ticker) + '.DE'
-    elif currency == 'RUB':
-        return str(ticker) + '.ME'
 
 
 def define_short_sector_name(sector: str) -> Optional[str]:

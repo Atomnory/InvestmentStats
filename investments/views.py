@@ -1,10 +1,11 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required, user_passes_test
 
-from .models import Portfolio
+from .models import Portfolio, Security
 from .services import get_empty_portfolio_forms, delete_portfolio, fill_portfolio_forms
 from .services import get_user_portfolios_list, get_empty_index_form, create_portfolio, get_formatted_securities_list
-from .tinkoff_client import get_etfs, get_bonds, define_stock_sector_and_country
+from .tinkoff_client import get_etfs, get_bonds, define_stock_sector_and_country, get_stocks
+from .tinkoff_client import get_not_found_stock_on_market, get_empty_dashboard_form_or_none, save_not_found_stock_if_valid
 
 
 def index_page(request):
@@ -68,30 +69,25 @@ def delete_portfolio_page(request, portfolio_pk):
 
 @user_passes_test(lambda u: u.is_superuser)
 def superuser_dashboard(request):
-    # if queryset(not_found_on_market = True):
-    # render SecurityFillInformationForm(the Security object from queryset)
+    not_found = get_not_found_stock_on_market()
+    form_filling = get_empty_dashboard_form_or_none(not_found)
 
     if request.method == 'POST':
         if 'create-etfs' in request.POST:
             get_etfs()
         elif 'create-bonds' in request.POST:
             get_bonds()
+        elif 'create-stocks' in request.POST:
+            get_stocks()
         elif 'define-info' in request.POST:
             define_stock_sector_and_country()
-        # elif 'fill-info' in request.POST:
-            # fill SecurityFillInformationForm()
-            # if form.is_valid():
-            # obj = the exact Security object from queryset
-            # obj.sector = form.cleaned_data['sector']
-            # obj.country = form.cleaned_date['country']
-            # obj.save()
-            # obj delete from queryset
-            # TODO: examine possibility to eliminate reloading queryset after post 'fill-info'
-            # Every reloading superuser_dashboard will query set of securities not found on market.
+        elif 'fill-info' in request.POST:
+            save_not_found_stock_if_valid(not_found, request.POST)
         return redirect('superuser_dashboard')
 
     superuser_dashboard_data = {
-        'user': request.user
+        'user': request.user,
+        'form_filling': form_filling
     }
 
     return render(request, 'investments/superuser_dashboard.html', superuser_dashboard_data)

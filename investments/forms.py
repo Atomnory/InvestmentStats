@@ -45,14 +45,19 @@ class PortfolioCreateForm(forms.ModelForm):
         fields = ['name']
 
 
-# TODO: add using formset
+# TODO: research formset using
 class SecurityFillInformationForm(forms.ModelForm):
+    ticker_custom = forms.CharField(max_length=16)
+
     def __init__(self, security: Security, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields['ticker'].initial = security.ticker
+        self.fields['ticker_custom'].initial = security.ticker
+        self.fields['ticker_custom'].disabled = True
         self.fields['name'].initial = security.name
+        self.fields['name'].disabled = True
+        self.fields['sector'].required = True
+        self.fields['country'].required = True
 
     class Meta:
         model = Security
-        fields = ['ticker', 'name', 'sector', 'country']
-    # TODO: add HiddenInput widget
+        fields = ['ticker_custom', 'name', 'sector', 'country']
