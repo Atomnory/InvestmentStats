@@ -1,34 +1,31 @@
+import os
 import datetime
-from typing import Union, Optional
-from decimal import Decimal, ROUND_HALF_UP
-from django.shortcuts import redirect
 import shutil
+import requests
+from typing import Union
+from decimal import Decimal, ROUND_HALF_UP
 
 import matplotlib.pyplot as plt
-import requests
 from django.db.models.fields.files import ImageFieldFile, FileField
 from django.http.request import QueryDict
 from django.core.handlers.wsgi import WSGIRequest
-from django.http import HttpResponseRedirect, HttpResponsePermanentRedirect
 from django.utils.functional import SimpleLazyObject
 
-from .models import Security, ExchangeRate, Portfolio, PortfolioItem
+from config.settings import MEDIA_ROOT, EXCHANGE_API_KEY
+from .models import ExchangeRate, Portfolio, PortfolioItem
 from .forms import SecuritiesCreateForm, SecuritiesDeleteForm, SecuritiesIncreaseQuantityForm
 from .forms import PortfolioCreateForm
-import os
-from config.settings import MEDIA_ROOT, EXCHANGE_API_KEY
 
 
 def get_user_portfolios_list(user: SimpleLazyObject) -> list[Portfolio]:
     return user.portfolio_set.all()
 
 
-def get_empty_index_form() -> PortfolioCreateForm:
+def get_empty_creating_portfolio_form() -> PortfolioCreateForm:
     return PortfolioCreateForm()
 
 
-def create_portfolio(request: WSGIRequest) \
-        -> Optional[Union[HttpResponsePermanentRedirect, HttpResponseRedirect]]:
+def create_portfolio(request: WSGIRequest):
     form_creating = PortfolioCreateForm(request.POST)
     if form_creating.is_valid():
         new_portfolio = form_creating.save(commit=False)
@@ -37,14 +34,11 @@ def create_portfolio(request: WSGIRequest) \
         graph_path = GraphPath(new_portfolio.pk).graph_path
         new_portfolio.graph = ImageFieldFile(instance=None, name=graph_path, field=FileField())
         new_portfolio.save()
-        return redirect('index')
 
 
-def delete_portfolio(portfolio: Portfolio) \
-        -> Optional[Union[HttpResponsePermanentRedirect, HttpResponseRedirect]]:
+def delete_portfolio(portfolio: Portfolio):
     shutil.rmtree(GraphPath(portfolio.pk).graph_full_root, ignore_errors=True)
     portfolio.delete()
-    return redirect('index')
 
 
 def get_empty_portfolio_forms(portfolio: Portfolio) \
@@ -58,21 +52,16 @@ def get_empty_portfolio_forms(portfolio: Portfolio) \
             'form_increasing': form_increasing}
 
 
-def fill_portfolio_forms(portfolio: Portfolio, request: WSGIRequest) \
-        -> Optional[Union[HttpResponsePermanentRedirect, HttpResponseRedirect]]:
-    if 'create_security' in request.POST:
-        response = create_security(portfolio, request.POST)
-    elif 'delete_security' in request.POST:
-        response = delete_security(portfolio, request.POST)
-    elif 'increase_security' in request.POST:
-        response = increase_security(portfolio, request.POST)
-
-    update_portfolio_graph(portfolio)
-    return response
+def fill_portfolio_forms(portfolio: Portfolio, post: QueryDict):
+    if 'create_security' in post:
+        create_security(portfolio, post)
+    elif 'delete_security' in post:
+        delete_security(portfolio, post)
+    elif 'increase_security' in post:
+        increase_security(portfolio, post)
 
 
-def create_security(portfolio: Portfolio, post: QueryDict) \
-        -> Optional[Union[HttpResponsePermanentRedirect, HttpResponseRedirect]]:
+def create_security(portfolio: Portfolio, post: QueryDict):
     form_creating = SecuritiesCreateForm(portfolio, post)
     if form_creating.is_valid():
         security = form_creating.cleaned_data['security_select']
@@ -80,20 +69,16 @@ def create_security(portfolio: Portfolio, post: QueryDict) \
         if quantity > 0:
             item = PortfolioItem(portfolio=portfolio, security=security, quantity=quantity)
             item.save()
-        return redirect('portfolio', portfolio_pk=portfolio.pk)
 
 
-def delete_security(portfolio: Portfolio, post: QueryDict) \
-        -> Optional[Union[HttpResponsePermanentRedirect, HttpResponseRedirect]]:
+def delete_security(portfolio: Portfolio, post: QueryDict):
     form_deleting = SecuritiesDeleteForm(portfolio, post)
     if form_deleting.is_valid():
         item = form_deleting.cleaned_data['field']
         item.delete()
-        return redirect('portfolio', portfolio_pk=portfolio.pk)
 
 
-def increase_security(portfolio: Portfolio, post: QueryDict) \
-        -> Optional[Union[HttpResponsePermanentRedirect, HttpResponseRedirect]]:
+def increase_security(portfolio: Portfolio, post: QueryDict):
     form_increasing = SecuritiesIncreaseQuantityForm(portfolio, post)
     if form_increasing.is_valid():
         item = form_increasing.cleaned_data['field']
@@ -101,7 +86,6 @@ def increase_security(portfolio: Portfolio, post: QueryDict) \
         if item.quantity + increment > 0:
             item.quantity += increment
         item.save()
-        return redirect('portfolio', portfolio_pk=portfolio.pk)
 
 
 def get_formatted_securities_list(portfolio: Portfolio) -> list[tuple[str, Decimal, str]]:
@@ -118,6 +102,8 @@ def get_all_portfolio_items(portfolio: Portfolio) -> list[PortfolioItem]:
 
 
 def update_portfolio_graph(portfolio: Portfolio) -> None:
+    # TODO: move update price in update_graph
+    # TODO: make update graph only once per day and after item changing
     cost, labels = update_graph_data(portfolio)
     plt.switch_backend('AGG')
     plt.pie(cost, labels=labels, autopct='%1.1f%%')
@@ -148,11 +134,9 @@ def update_graph_data(portfolio: Portfolio) -> tuple[list[Decimal], list[str]]:
 
 def get_last_exchange_rate() -> ExchangeRate:
     try:
-        rate = get_exchange_rate_object()
+        rate = update_exchange_rate()   # TODO: test if obj does not exist
     except ExchangeRate.DoesNotExist:
         rate = create_exchange_rate()
-    else:
-        rate = update_exchange_rate(rate)
     return rate
 
 
@@ -169,18 +153,19 @@ def create_exchange_rate() -> ExchangeRate:
     return rate
 
 
-def update_exchange_rate(ex_rate: ExchangeRate) -> ExchangeRate:
-    if ex_rate.last_updated != get_today():
+def update_exchange_rate() -> ExchangeRate:
+    rate = get_exchange_rate_object()
+    if rate.last_updated != get_today():
         print('$$ Exchange rate is expired. Getting update.')
         rates_data = get_conversion_rates()
-        ex_rate.eur_rate = rates_data['EUR']
-        ex_rate.rub_rate = rates_data['RUB']
-        ex_rate.save()
-    return ex_rate
+        rate.eur_rate = rates_data['EUR']
+        rate.rub_rate = rates_data['RUB']
+        rate.save()
+    return rate
 
 
 def get_today() -> datetime.date:
-    return datetime.datetime.today().date()
+    return datetime.datetime.utcnow().date()
 
 
 def get_conversion_rates() -> dict:

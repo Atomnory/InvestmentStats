@@ -1,51 +1,53 @@
-from config.settings import TINVEST_TOKEN, YAHOO_API_KEY, MEDIA_ROOT
-from tinvest import SyncClient
 import time
 import requests
-from .models import Security
-from tinvest.exceptions import TooManyRequestsError, UnexpectedError
 from typing import Optional
 from datetime import datetime
 from dateutil.parser import parse
-from .forms import SecurityFillInformationForm
+from decimal import Decimal
+
 from django.http.request import QueryDict
+from tinvest import SyncClient
+from tinvest.exceptions import TooManyRequestsError, UnexpectedError
+from tinvest.clients import MarketInstrumentListResponse
+
+from config.settings import TINVEST_TOKEN, YAHOO_API_KEY, MEDIA_ROOT
+from .models import Security
+from .forms import SecurityFillInformationForm
+
+# TODO: add Model LastUpdate for monthly updating Securities and daily updating YAHOO API using
+# TODO: add update Security price
+# TODO: add filling ETFs info
 
 
-def get_etfs():
+def save_tinvest_etfs():
     client = SyncClient(TINVEST_TOKEN)
     data = client.get_market_etfs()
-    etfs = data.dict()
-    instrs = etfs['payload']['instruments']
-    save_securities(client, instrs)
+    process_securities(client, data)
 
 
-def get_stocks():
-    client = SyncClient(TINVEST_TOKEN)
-    data = client.get_market_stocks()
-    stocks = data.dict()
-    instrs = stocks['payload']['instruments']
-    save_securities(client, instrs)
-
-
-def get_bonds():
+def save_tinvest_bonds():
     client = SyncClient(TINVEST_TOKEN)
     data = client.get_market_bonds()
-    bonds = data.dict()
-    instrs = bonds['payload']['instruments']
-    save_securities(client, instrs)
+    process_securities(client, data)
 
 
-def get_not_found_stock_on_market() -> Optional[Security]:
+def save_tinvest_stocks():
+    client = SyncClient(TINVEST_TOKEN)
+    data = client.get_market_stocks()
+    process_securities(client, data)
+
+
+def get_not_found_stock() -> Optional[Security]:
     return Security.objects.filter(not_found_on_market__exact=True).first()
 
 
-def get_empty_dashboard_form_or_none(not_found_security: Security) -> Optional[SecurityFillInformationForm]:
+def get_empty_fill_info_form_or_none(not_found_security: Security) -> Optional[SecurityFillInformationForm]:
     if not_found_security:
         return SecurityFillInformationForm(not_found_security)
     return None
 
 
-def save_not_found_stock_if_valid(not_found_stock: Security, post: QueryDict):
+def save_not_found_stock_info(not_found_stock: Security, post: QueryDict):
     form_filling = SecurityFillInformationForm(not_found_stock, post)
     if form_filling.is_valid():
         not_found_stock.sector = form_filling.cleaned_data['sector']
@@ -54,78 +56,74 @@ def save_not_found_stock_if_valid(not_found_stock: Security, post: QueryDict):
         not_found_stock.save()
 
 
-def print_secs(client: SyncClient, instruments: list):
-    count = 0
-    for row in instruments:
-        if count >= 10:
-            break
-        searcher = client.get_market_search_by_figi(row['figi'])
-        price = client.get_market_orderbook(row['figi'], 1)
-        print(searcher)
-        print(price)
-        count += 1
-        # print('Security:',
-        #       '$' + str(searcher.payload.ticker),
-        #       searcher.payload.name,
-        #       'price:',
-        #       price.payload.close_price,
-        #       searcher.payload.currency.value)
+def process_securities(client: SyncClient, data: MarketInstrumentListResponse):
+    instruments = data.dict()['payload']['instruments']
+    length = len(instruments)
+    for i, row in enumerate(instruments):
+        if i > 0 and i % 100 == 0:
+            wait_60()
 
+        security_type = row['type'].value
+        currency = row['currency'].value
+        figi = row['figi']
+        new_ticker = define_ticker(row['ticker'], security_type, currency)
+        new_sector = define_sector(security_type)
+        not_found = define_not_found(security_type)
 
-def save_securities(client: SyncClient, instruments: list):
-    count = 0
-    len_instr = len(instruments)
-    for row in instruments:
-        new_ticker = get_normalized_ticker(row['ticker'], row['currency'].value)
-        if count % 100 == 0:
-            time.sleep(60)
         try:
-            orderbook = client.get_market_orderbook(row['figi'], 1)
+            price = get_close_price(client, figi)
         except TooManyRequestsError as e:
-            print(e)
-            time.sleep(60)
-            orderbook = client.get_market_orderbook(row['figi'], 1)
+            print_handle_securities_error(row, i, length, new_ticker, e)
+            wait_60()
+            price = get_close_price(client, figi)
         except UnexpectedError as e:
-            count += 1
-            print(row)
-            print(count, '/', len_instr, '(' + str(new_ticker) + ')', 'market error.')
-            print('ERROR:', e)
+            print_handle_securities_error(row, i, length, new_ticker, e)
             continue
-        if row['type'].value == 'Etf':
-            sec_sector = 'ETF'
-            not_found = True
-        elif row['type'].value == 'Bond':
-            sec_sector = 'BOND'
-            not_found = True
-        elif row['type'].value == 'Stock':
-            sec_sector = None
-            not_found = False
-        else:
-            sec_sector = None
-            not_found = True
+
         try:
-            sec = Security(
-                ticker=new_ticker,
-                name=row['name'],
-                price=orderbook.payload.close_price,
-                currency=row['currency'].value,
-                sector=sec_sector,
-                country=None,
-                not_found_on_market=not_found
-            )
-            sec.save()
+            save_security(new_ticker, row['name'], price, currency, new_sector, None, not_found)
         except Exception as e:
-            count += 1
-            print(row)
-            print(count, '/', len_instr, '(' + str(new_ticker) + ')', 'saving error.')
-            print('ERROR:', e)
-            continue
-        count += 1
-        print(count, '/', len_instr, '(' + str(new_ticker) + ')')
+            print_handle_securities_error(row, i, length, new_ticker, e)
+        else:
+            print_handle_securities_success(i, length, new_ticker)
 
 
-# TODO: add update Security price
-def get_normalized_ticker(ticker: str, currency: str) -> str:
+def wait_60():
+    time.sleep(60)
+
+
+def define_ticker(ticker: str, security_type: str, currency: str) -> str:
+    # TODO: add FinEx ETFs processing
+    if security_type == 'Stock':
+        return get_normalized_stock_ticker(ticker, currency)
+    return ticker
+
+
+def define_sector(security_type: str) -> Optional[str]:
+    if security_type == 'Etf':
+        return 'ETF'
+    elif security_type == 'Bond':
+        return 'BOND'
+    elif security_type == 'Stock':
+        return None
+    else:
+        print('ERROR: undefined security_type:', security_type)
+        return None
+
+
+def define_not_found(security_type: str) -> bool:
+    # TODO: add FinEx ETFs processing -> False
+    if security_type == 'Etf':
+        return True
+    elif security_type == 'Bond':
+        return True
+    elif security_type == 'Stock':
+        return False
+    else:
+        return True
+
+
+def get_normalized_stock_ticker(ticker: str, currency: str) -> str:
     # BRK.B -> BRK-B
     # LKOD@GS -> LKOD.IL
     # PUMA@DE -> PUMA.DE
@@ -145,47 +143,81 @@ def get_normalized_ticker(ticker: str, currency: str) -> str:
         return str(ticker) + '.ME'
 
 
+def save_security(ticker: str, name: str, price: Decimal, currency: str, sector: Optional[str], country: Optional[str],
+                  not_found: bool):
+    sec = Security(
+        ticker=ticker,
+        name=name,
+        price=price,
+        currency=currency,
+        sector=sector,
+        country=country,
+        not_found_on_market=not_found
+    )
+    sec.save()
+
+
+def get_close_price(client: SyncClient, figi: str) -> Decimal:
+    order_book = client.get_market_orderbook(figi, 1)
+    return order_book.payload.close_price
+
+
+def print_handle_securities_error(row: dict, i: int, length: int, ticker: str, e: Exception):
+    print(row)
+    print(i, '/', length, '(' + str(ticker) + ')')
+    print('ERROR:', e)
+
+
+def print_handle_securities_success(i: int, length: int, ticker: str):
+    print(i, '/', length, '(' + str(ticker) + ')')
+
+
 class StockNotFound(Exception):
     pass
 
 
-def define_stock_sector_and_country():
-    if not can_fill_stock_info():
-        print('YAHOO API is over-requested today')
+def auto_define_stock_info():
+    if was_yahoo_api_used_today():
         return
-    stocks = get_list_all_stocks_without_country_and_sector_and_not_found()
+    stocks = get_list_stocks_without_info()
     if not stocks:
         print('Securities without sector and country are not exist')
         return
+    process_stock_info(stocks)
+    update_yahoo_api_using_date()
+
+
+def process_stock_info(stocks: list[Security]):
     for row in stocks:
         try:
-            info = get_stock_info_or_error(ticker=row.ticker)
-            country = info['country']
-            sector = info['sector']
-        except requests.ConnectionError as e:
-            print(e)
-            break
-        except requests.HTTPError as e:
-            print(e)
-            break
+            info = get_stock_info_or_error(row.ticker)
         except StockNotFound as e:
+            mark_security_as_not_found(row)
             print(e)
-            row.not_found_on_market = True
-            row.save()
-            continue
-        except Exception as e:
+        except (requests.ConnectionError, requests.HTTPError, Exception) as e:
             print(e)
             break
-
-        row.sector = define_short_sector_name(sector)
-        if row.currency == 'RUB':
-            row.country = 'Russia'
         else:
-            row.country = country
-        row.save()
-        print('Ticker:', '$' + str(row.ticker) + ',', 'country:', row.country, 'sector:', row.sector)
+            save_stock_info(row, info['sector'], info['country'])
 
-    update_fill_stock_date()
+
+def mark_security_as_not_found(row: Security):
+    row.not_found_on_market = True
+    row.save()
+
+
+def save_stock_info(row: Security, sector: str, country: str):
+    row.sector = define_short_sector_name(sector)
+    if row.currency == 'RUB':
+        row.country = 'Russia'
+    else:
+        row.country = country
+    row.save()
+    print_save_stock_success(row.ticker, row.sector, row.country)
+
+
+def print_save_stock_success(ticker: str, sector: str, country: str):
+    print('Ticker:', '$' + str(ticker) + ',', 'sector:', sector, 'country:', country)
 
 
 def get_stock_info_or_error(ticker: str) -> dict:
@@ -199,6 +231,10 @@ def get_stock_info_or_error(ticker: str) -> dict:
     }
     response = requests.get(url=url, params=options, headers=headers)
     response.raise_for_status()
+    return unpack_stock_info(response, ticker)
+
+
+def unpack_stock_info(response: requests.Response, ticker: str) -> dict:
     data = response.json()['quoteSummary']['result']
     if data is None:
         raise StockNotFound(f'Ticker: ${ticker} Not found')
@@ -206,7 +242,7 @@ def get_stock_info_or_error(ticker: str) -> dict:
     return {'country': asset_profile['country'], 'sector': asset_profile['sector']}
 
 
-def get_list_all_stocks_without_country_and_sector_and_not_found() -> Optional[list[Security]]:
+def get_list_stocks_without_info() -> Optional[list[Security]]:
     return Security.objects.filter(country__isnull=True, sector__isnull=True, not_found_on_market__exact=False)
 
 
@@ -238,21 +274,22 @@ def define_short_sector_name(sector: str) -> Optional[str]:
         return None
 
 
-def can_fill_stock_info() -> bool:
+def was_yahoo_api_used_today() -> bool:
     try:
         with open(f'{MEDIA_ROOT}/fill_stock_date.txt', 'r') as f:
             text = f.readline()
     except FileNotFoundError:
-        return True
+        return False
     date = parse(text).date()
     today = datetime.utcnow().date()
     if date == today:
-        return False
-    else:
+        print('YAHOO API is over-requested today')
         return True
+    else:
+        return False
 
 
-def update_fill_stock_date():
+def update_yahoo_api_using_date():
     today = datetime.utcnow().date()
     with open(f'{MEDIA_ROOT}/fill_stock_date.txt', 'w') as f:
         f.write(str(today))
