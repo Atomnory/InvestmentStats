@@ -15,26 +15,37 @@ from .models import Security
 from .forms import SecurityFillInformationForm
 
 # TODO: add Model LastUpdate for monthly updating Securities and daily updating YAHOO API using
-# TODO: add update Security price
-# TODO: add filling ETFs info
+# TODO: add filling ETFs info - impossible
+
+
+def update_security_price(security: Security):
+    new_price = get_security_price(security.figi)
+    security.price = new_price
+    security.save()
+
+
+def get_security_price(figi: str) -> Decimal:
+    client = SyncClient(TINVEST_TOKEN)
+    order_book = client.get_market_orderbook(figi, 1)
+    return order_book.payload.close_price
 
 
 def save_tinvest_etfs():
     client = SyncClient(TINVEST_TOKEN)
     data = client.get_market_etfs()
-    process_securities(client, data)
+    process_securities(data)
 
 
 def save_tinvest_bonds():
     client = SyncClient(TINVEST_TOKEN)
     data = client.get_market_bonds()
-    process_securities(client, data)
+    process_securities(data)
 
 
 def save_tinvest_stocks():
     client = SyncClient(TINVEST_TOKEN)
     data = client.get_market_stocks()
-    process_securities(client, data)
+    process_securities(data)
 
 
 def get_not_found_stock() -> Optional[Security]:
@@ -56,7 +67,7 @@ def save_not_found_stock_info(not_found_stock: Security, post: QueryDict):
         not_found_stock.save()
 
 
-def process_securities(client: SyncClient, data: MarketInstrumentListResponse):
+def process_securities(data: MarketInstrumentListResponse):
     instruments = data.dict()['payload']['instruments']
     length = len(instruments)
     for i, row in enumerate(instruments):
@@ -71,17 +82,17 @@ def process_securities(client: SyncClient, data: MarketInstrumentListResponse):
         not_found = define_not_found(security_type)
 
         try:
-            price = get_close_price(client, figi)
+            price = get_security_price(figi)
         except TooManyRequestsError as e:
             print_handle_securities_error(row, i, length, new_ticker, e)
             wait_60()
-            price = get_close_price(client, figi)
+            price = get_security_price(figi)
         except UnexpectedError as e:
             print_handle_securities_error(row, i, length, new_ticker, e)
             continue
 
         try:
-            save_security(new_ticker, row['name'], price, currency, new_sector, None, not_found)
+            save_security(new_ticker, figi, row['name'], price, currency, new_sector, None, not_found)
         except Exception as e:
             print_handle_securities_error(row, i, length, new_ticker, e)
         else:
@@ -93,7 +104,6 @@ def wait_60():
 
 
 def define_ticker(ticker: str, security_type: str, currency: str) -> str:
-    # TODO: add FinEx ETFs processing
     if security_type == 'Stock':
         return get_normalized_stock_ticker(ticker, currency)
     return ticker
@@ -112,7 +122,6 @@ def define_sector(security_type: str) -> Optional[str]:
 
 
 def define_not_found(security_type: str) -> bool:
-    # TODO: add FinEx ETFs processing -> False
     if security_type == 'Etf':
         return True
     elif security_type == 'Bond':
@@ -143,10 +152,11 @@ def get_normalized_stock_ticker(ticker: str, currency: str) -> str:
         return str(ticker) + '.ME'
 
 
-def save_security(ticker: str, name: str, price: Decimal, currency: str, sector: Optional[str], country: Optional[str],
-                  not_found: bool):
+def save_security(ticker: str, figi: str, name: str, price: Decimal, currency: str, sector: Optional[str],
+                  country: Optional[str], not_found: bool):
     sec = Security(
         ticker=ticker,
+        figi=figi,
         name=name,
         price=price,
         currency=currency,
@@ -155,11 +165,6 @@ def save_security(ticker: str, name: str, price: Decimal, currency: str, sector:
         not_found_on_market=not_found
     )
     sec.save()
-
-
-def get_close_price(client: SyncClient, figi: str) -> Decimal:
-    order_book = client.get_market_orderbook(figi, 1)
-    return order_book.payload.close_price
 
 
 def print_handle_securities_error(row: dict, i: int, length: int, ticker: str, e: Exception):

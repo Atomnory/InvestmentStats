@@ -38,10 +38,10 @@ def portfolio_page(request, portfolio_pk):
             fill_portfolio_forms(portfolio, request.POST)
             return redirect('portfolio', portfolio_pk=portfolio.pk)
 
-        update_portfolio_graph(portfolio)
         forms = get_empty_portfolio_forms(portfolio)
-        graph = portfolio.graph
         securities = get_formatted_securities_list(portfolio)
+        update_portfolio_graph(portfolio)
+        graph = portfolio.graph
 
         portfolio_page_data = {
             'securities': securities,

@@ -15,6 +15,7 @@ from config.settings import MEDIA_ROOT, EXCHANGE_API_KEY
 from .models import ExchangeRate, Portfolio, PortfolioItem
 from .forms import SecuritiesCreateForm, SecuritiesDeleteForm, SecuritiesIncreaseQuantityForm
 from .forms import PortfolioCreateForm
+from .tinkoff_client import update_security_price
 
 
 def get_user_portfolios_list(user: SimpleLazyObject) -> list[Portfolio]:
@@ -98,11 +99,14 @@ def get_formatted_securities_list(portfolio: Portfolio) -> list[tuple[str, Decim
 
 
 def get_all_portfolio_items(portfolio: Portfolio) -> list[PortfolioItem]:
-    return portfolio.portfolioitem_set.all()
+    items = portfolio.portfolioitem_set.all()
+    for item in items:
+        if item.security.last_updated != get_today():
+            update_security_price(item.security)
+    return items
 
 
 def update_portfolio_graph(portfolio: Portfolio) -> None:
-    # TODO: move update price in update_graph
     # TODO: make update graph only once per day and after item changing
     cost, labels = update_graph_data(portfolio)
     plt.switch_backend('AGG')
@@ -134,7 +138,7 @@ def update_graph_data(portfolio: Portfolio) -> tuple[list[Decimal], list[str]]:
 
 def get_last_exchange_rate() -> ExchangeRate:
     try:
-        rate = update_exchange_rate()   # TODO: test if obj does not exist
+        rate = update_exchange_rate()
     except ExchangeRate.DoesNotExist:
         rate = create_exchange_rate()
     return rate

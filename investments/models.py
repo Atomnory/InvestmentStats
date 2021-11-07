@@ -28,6 +28,7 @@ class Security(models.Model):
     )
 
     ticker = models.CharField('Ticker', max_length=16, unique=True)
+    figi = models.CharField('FIGI', max_length=12, unique=True)
     name = models.CharField('Name', max_length=100)
     price = models.DecimalField('Price', max_digits=12, decimal_places=4)
     currency = models.CharField('Currency', max_length=3, choices=currency_choice)
