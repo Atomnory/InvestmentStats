@@ -1,6 +1,5 @@
-1. Use Tinkoff API (or other broker API) to request current price of securities (try to use this API to get exchange rate instead 3-rd parties)
-2. Use Select2 for security searching
+1. Use Select2 for security searching
+2. Update web-design
 3. Add graph with partition depends on country and sector
-4. Use Tinkoff API user token to get info about user securities
-5. Add and use Javascript animation to display pie graph instead of Matplotlib
-6. Add Django REST Framework using
+4. Add and use Javascript animation to display pie graph instead of Matplotlib
+5. Add Django REST Framework using

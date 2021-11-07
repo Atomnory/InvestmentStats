@@ -56,7 +56,12 @@ class ExchangeRate(models.Model):
 class Portfolio(models.Model):
     investor = models.ForeignKey(User, on_delete=models.CASCADE)
     name = models.CharField('Portfolio name', max_length=100)
-    graph = models.ImageField('Portfolio pie graph', upload_to='portfolio_graph', null=True)
+    graph = models.ImageField('Portfolio pie graph', upload_to='portfolio_graph', null=True)    # delete
+    # securities_graph that displays all securities in portfolio
+    # sector_graph that displays all securities grouped by sector not case sensitive
+    # country_graph that displays all securities grouped by country not case sensitive
+    # currency_graph that displays all securities grouped by currency
+    # last_updated will be using for update graphs once per day or if items are changed
 
     def __str__(self):
         return self.name

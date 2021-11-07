@@ -39,6 +39,7 @@ def portfolio_page(request, portfolio_pk):
             return redirect('portfolio', portfolio_pk=portfolio.pk)
 
         forms = get_empty_portfolio_forms(portfolio)
+        # TODO: add Select2 plugin
         securities = get_formatted_securities_list(portfolio)
         update_portfolio_graph(portfolio)
         graph = portfolio.graph

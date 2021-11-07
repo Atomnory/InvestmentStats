@@ -15,7 +15,9 @@ from .models import Security
 from .forms import SecurityFillInformationForm
 
 # TODO: add Model LastUpdate for monthly updating Securities and daily updating YAHOO API using
-# TODO: add filling ETFs info - impossible
+# Emerging Markets
+# Developed Markets
+# All Country World
 
 
 def update_security_price(security: Security):
@@ -69,7 +71,7 @@ def save_not_found_stock_info(not_found_stock: Security, post: QueryDict):
 
 def process_securities(data: MarketInstrumentListResponse):
     instruments = data.dict()['payload']['instruments']
-    length = len(instruments)
+    length = len(instruments) - 1
     for i, row in enumerate(instruments):
         if i > 0 and i % 100 == 0:
             wait_60()
@@ -78,6 +80,11 @@ def process_securities(data: MarketInstrumentListResponse):
         currency = row['currency'].value
         figi = row['figi']
         new_ticker = define_ticker(row['ticker'], security_type, currency)
+
+        if is_in_stop_list(new_ticker, security_type):
+            print_handle_securities_in_stop_list(i, length, new_ticker)
+            continue
+
         new_sector = define_sector(security_type)
         not_found = define_not_found(security_type)
 
@@ -101,6 +108,14 @@ def process_securities(data: MarketInstrumentListResponse):
 
 def wait_60():
     time.sleep(60)
+
+
+def is_in_stop_list(ticker: str, security_type: str):
+    stock_stop_list = ['ALXN', 'TECH']
+    if security_type == 'Stock':
+        if ticker in stock_stop_list:
+            return True
+    return False
 
 
 def define_ticker(ticker: str, security_type: str, currency: str) -> str:
@@ -175,6 +190,10 @@ def print_handle_securities_error(row: dict, i: int, length: int, ticker: str, e
 
 def print_handle_securities_success(i: int, length: int, ticker: str):
     print(i, '/', length, '(' + str(ticker) + ')')
+
+
+def print_handle_securities_in_stop_list(i: int, length: int, ticker: str):
+    print(i, '/', length, '(' + str(ticker) + ')', '- is in stop list. It will not be added.')
 
 
 class StockNotFound(Exception):

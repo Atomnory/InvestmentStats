@@ -56,6 +56,7 @@ class SecurityFillInformationForm(forms.ModelForm):
         self.fields['name'].initial = security.name
         self.fields['name'].disabled = True
         self.fields['sector'].required = True
+        self.fields['sector'].initial = security.sector
         self.fields['country'].required = True
 
     class Meta:

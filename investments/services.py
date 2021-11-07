@@ -16,6 +16,7 @@ from .models import ExchangeRate, Portfolio, PortfolioItem
 from .forms import SecuritiesCreateForm, SecuritiesDeleteForm, SecuritiesIncreaseQuantityForm
 from .forms import PortfolioCreateForm
 from .tinkoff_client import update_security_price
+# TODO: add sector, country, currency graphs creating and updating
 
 
 def get_user_portfolios_list(user: SimpleLazyObject) -> list[Portfolio]:
