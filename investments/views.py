@@ -2,9 +2,9 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required, user_passes_test
 
 from .models import Portfolio
-from .services import get_empty_portfolio_forms, delete_portfolio, fill_portfolio_forms, update_portfolio_graph
+from .services import get_empty_portfolio_forms, delete_portfolio, fill_portfolio_forms, update_portfolio_graphs
 from .services import get_user_portfolios_list, get_empty_creating_portfolio_form, create_portfolio
-from .services import get_formatted_securities_list
+from .services import get_formatted_securities_list, update_portfolio_graphs_path
 from .tinkoff_client import save_tinvest_etfs, save_tinvest_bonds, auto_define_stock_info, save_tinvest_stocks
 from .tinkoff_client import get_not_found_stock, get_empty_fill_info_form_or_none, save_not_found_stock_info
 
@@ -41,12 +41,19 @@ def portfolio_page(request, portfolio_pk):
         forms = get_empty_portfolio_forms(portfolio)
         # TODO: add Select2 plugin
         securities = get_formatted_securities_list(portfolio)
-        update_portfolio_graph(portfolio)
-        graph = portfolio.graph
+        update_portfolio_graphs(portfolio)
+        # update_portfolio_graphs_path(portfolio)
+        securities_graph = portfolio.securities_graph
+        # sector_graph = portfolio.sector_graph
+        # country_graph = portfolio.country_graph
+        currency_graph = portfolio.currency_graph
 
         portfolio_page_data = {
             'securities': securities,
-            'graph': graph,
+            'securities_graph': securities_graph,
+            # 'sector_graph': sector_graph,
+            # 'country_graph': country_graph,
+            'currency_graph': currency_graph,
             'form_creating': forms['form_creating'],
             'form_deleting': forms['form_deleting'],
             'form_increasing': forms['form_increasing'],

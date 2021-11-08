@@ -10,6 +10,7 @@ from django.db.models.fields.files import ImageFieldFile, FileField
 from django.http.request import QueryDict
 from django.core.handlers.wsgi import WSGIRequest
 from django.utils.functional import SimpleLazyObject
+from django.db.models import Count
 
 from config.settings import MEDIA_ROOT, EXCHANGE_API_KEY
 from .models import ExchangeRate, Portfolio, PortfolioItem
@@ -17,6 +18,7 @@ from .forms import SecuritiesCreateForm, SecuritiesDeleteForm, SecuritiesIncreas
 from .forms import PortfolioCreateForm
 from .tinkoff_client import update_security_price
 # TODO: add sector, country, currency graphs creating and updating
+# TODO: hide all graphs funcs in class Graph
 
 
 def get_user_portfolios_list(user: SimpleLazyObject) -> list[Portfolio]:
@@ -33,13 +35,23 @@ def create_portfolio(request: WSGIRequest):
         new_portfolio = form_creating.save(commit=False)
         new_portfolio.investor = request.user
         new_portfolio.save()
-        graph_path = GraphPath(new_portfolio.pk).graph_path
-        new_portfolio.graph = ImageFieldFile(instance=None, name=graph_path, field=FileField())
+        graph_path_security = GraphPath(new_portfolio.pk, 'security').graph_path
+        new_portfolio.securities_graph = ImageFieldFile(instance=None, name=graph_path_security, field=FileField())
+        graph_path_currency = GraphPath(new_portfolio.pk, 'currency').graph_path
+        new_portfolio.currency_graph = ImageFieldFile(instance=None, name=graph_path_currency, field=FileField())
         new_portfolio.save()
 
 
+def update_portfolio_graphs_path(portfolio: Portfolio):
+    graph_path_security = GraphPath(portfolio.pk, 'security').graph_path
+    portfolio.securities_graph = ImageFieldFile(instance=None, name=graph_path_security, field=FileField())
+    graph_path_currency = GraphPath(portfolio.pk, 'currency').graph_path
+    portfolio.currency_graph = ImageFieldFile(instance=None, name=graph_path_currency, field=FileField())
+    portfolio.save()
+
+
 def delete_portfolio(portfolio: Portfolio):
-    shutil.rmtree(GraphPath(portfolio.pk).graph_full_root, ignore_errors=True)
+    shutil.rmtree(GraphPath(portfolio.pk, 'security').graph_full_root, ignore_errors=True)
     portfolio.delete()
 
 
@@ -91,7 +103,7 @@ def increase_security(portfolio: Portfolio, post: QueryDict):
 
 
 def get_formatted_securities_list(portfolio: Portfolio) -> list[tuple[str, Decimal, str]]:
-    items = get_all_portfolio_items(portfolio)
+    items = get_updated_portfolio_items(portfolio)
     securities = []
     for row in items:
         cost = Decimal(row.security.price * row.quantity).quantize(Decimal('1.01'), rounding=ROUND_HALF_UP)
@@ -99,26 +111,45 @@ def get_formatted_securities_list(portfolio: Portfolio) -> list[tuple[str, Decim
     return securities
 
 
-def get_all_portfolio_items(portfolio: Portfolio) -> list[PortfolioItem]:
-    items = portfolio.portfolioitem_set.all()
+def get_updated_portfolio_items(portfolio: Portfolio) -> list[PortfolioItem]:
+    items = get_portfolio_items(portfolio)
     for item in items:
         if item.security.last_updated != get_today():
             update_security_price(item.security)
     return items
 
 
-def update_portfolio_graph(portfolio: Portfolio) -> None:
+def get_portfolio_items(portfolio: Portfolio) -> list[PortfolioItem]:
+    return portfolio.portfolioitem_set.all()
+
+
+def update_portfolio_graphs(portfolio: Portfolio) -> None:
     # TODO: make update graph only once per day and after item changing
-    cost, labels = update_graph_data(portfolio)
     plt.switch_backend('AGG')
-    plt.pie(cost, labels=labels, autopct='%1.1f%%')
-    graph_path = GraphPath(portfolio.pk)
+    update_securities_graph(portfolio)
+    update_currency_graph(portfolio)
+
+
+def update_securities_graph(portfolio: Portfolio):
+    fig_sec, ax_sec = plt.subplots()
+    cost, labels = update_securities_graph_data(portfolio)
+    ax_sec.pie(cost, labels=labels, autopct='%1.1f%%')
+    graph_path = GraphPath(portfolio.pk, 'security')
     os.makedirs(graph_path.graph_full_root, exist_ok=True)
-    plt.savefig(graph_path.graph_full_path)
+    fig_sec.savefig(graph_path.graph_full_path)
 
 
-def update_graph_data(portfolio: Portfolio) -> tuple[list[Decimal], list[str]]:
-    items = get_all_portfolio_items(portfolio)
+def update_currency_graph(portfolio: Portfolio):
+    fig_cur, ax_cur = plt.subplots()
+    cost, labels = update_currency_graph_data(portfolio)
+    ax_cur.pie(cost, labels=labels, autopct='%1.1f%%')
+    graph_path = GraphPath(portfolio.pk, 'currency')
+    os.makedirs(graph_path.graph_full_root, exist_ok=True)
+    fig_cur.savefig(graph_path.graph_full_path)
+
+
+def update_securities_graph_data(portfolio: Portfolio) -> tuple[list[Decimal], list[str]]:
+    items = get_portfolio_items(portfolio)
     rate = get_last_exchange_rate()
     cost = []
     labels = []
@@ -133,8 +164,35 @@ def update_graph_data(portfolio: Portfolio) -> tuple[list[Decimal], list[str]]:
             cost.append((row.security.price / rub_rate) * row.quantity)
         labels.append(row.security.ticker)
 
-    print('$$ update graph')
+    print('$$ update security graph')
     return cost, labels
+
+
+def update_currency_graph_data(portfolio: Portfolio) -> tuple[list[Decimal], list[str]]:
+    # items = portfolio.portfolio_set.security.values('currency').annotate(total=Count('price')).order_by()
+    items = get_portfolio_items(portfolio)
+    rate = get_last_exchange_rate()
+    cost = [0, 0, 0]
+    labels = ('USD', 'EUR', 'RUB')
+    for row in items:
+        if row.security.currency == 'USD':
+            cost[0] += row.security.price * row.quantity
+        elif row.security.currency == 'EUR':
+            eur_rate = Decimal(rate.eur_rate).quantize(Decimal('1.01'), rounding=ROUND_HALF_UP)
+            cost[1] += (row.security.price / eur_rate) * row.quantity
+        elif row.security.currency == 'RUB':
+            rub_rate = Decimal(rate.rub_rate).quantize(Decimal('1.01'), rounding=ROUND_HALF_UP)
+            cost[2] += (row.security.price / rub_rate) * row.quantity
+
+    res_cost = []
+    res_labels = []
+    for i, data in enumerate(cost):
+        if data > 0:
+            res_cost.append(data)
+            res_labels.append(labels[i])
+
+    print('$$ update currency graph')
+    return res_cost, res_labels
 
 
 def get_last_exchange_rate() -> ExchangeRate:
@@ -181,8 +239,9 @@ def get_conversion_rates() -> dict:
 
 
 class GraphPath:
-    def __init__(self, pk: int):
+    def __init__(self, pk: int, graph_type: str):
         self._pk = pk
+        self._graph_type = graph_type
         self._graph_name = None
         self._graph_path = None
         self._graph_full_root = None
@@ -190,7 +249,16 @@ class GraphPath:
         self._define_name_and_paths()
 
     def _define_name_and_paths(self):
-        self._graph_name = os.path.join('securities_pie.png')
+        if self._graph_type == 'security':
+            self._graph_name = os.path.join('securities_pie.png')
+        elif self._graph_type == 'sector':
+            self._graph_name = os.path.join('sector_pie.png')
+        elif self._graph_type == 'country':
+            self._graph_name = os.path.join('country_pie.png')
+        elif self._graph_type == 'currency':
+            self._graph_name = os.path.join('currency_pie.png')
+        else:
+            raise Exception('ERROR: undefined graph type:', self._graph_type)
         portfolio_graph_root = os.path.join('portfolio_graph', f'{self._pk}')
         self._graph_path = os.path.join(portfolio_graph_root, self._graph_name)
         self._graph_full_root = os.path.join(MEDIA_ROOT, portfolio_graph_root)
