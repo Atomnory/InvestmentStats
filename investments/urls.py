@@ -6,5 +6,6 @@ urlpatterns = [
     path('', views.index_page, name='index'),
     path('<int:portfolio_pk>', views.portfolio_page, name='portfolio'),
     path('delete-portfolio/<int:portfolio_pk>', views.delete_portfolio_page, name='delete_portfolio'),
-    path('superuser-dashboard', views.superuser_dashboard, name='superuser_dashboard')
+    path('superuser-dashboard', views.superuser_dashboard, name='superuser_dashboard'),
+    path('delete-not-found/<int:security_pk>', views.delete_not_found_stock, name='delete_not_found')
 ]

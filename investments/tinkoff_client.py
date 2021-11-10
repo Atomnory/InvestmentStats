@@ -69,6 +69,11 @@ def save_not_found_stock_info(not_found_stock: Security, post: QueryDict):
         not_found_stock.save()
 
 
+def delete_not_found_stock_and_add_to_stop_list(not_found_stock: Security):
+    add_to_stock_stop_list(not_found_stock.ticker)
+    not_found_stock.delete()
+
+
 def process_securities(data: MarketInstrumentListResponse):
     instruments = data.dict()['payload']['instruments']
     length = len(instruments) - 1
@@ -111,7 +116,9 @@ def wait_60():
 
 
 def is_in_stop_list(ticker: str, security_type: str):
-    stock_stop_list = ['ALXN', 'TECH']
+    stock_stop_list = get_stock_stop_list()
+    if not stock_stop_list:
+        return False
     if security_type == 'Stock':
         if ticker in stock_stop_list:
             return True
@@ -317,3 +324,19 @@ def update_yahoo_api_using_date():
     today = datetime.utcnow().date()
     with open(f'{MEDIA_ROOT}/fill_stock_date.txt', 'w') as f:
         f.write(str(today))
+
+
+def get_stock_stop_list() -> Optional[list[str]]:
+    try:
+        stocks = []
+        with open(f'{MEDIA_ROOT}/stock_stop_list.txt', 'r') as f:
+            for line in f.read().splitlines():
+                stocks.append(line)
+        return stocks
+    except FileNotFoundError:
+        return None
+
+
+def add_to_stock_stop_list(ticker: str):
+    with open(f'{MEDIA_ROOT}/stock_stop_list.txt', 'a') as f:
+        print(ticker, file=f)

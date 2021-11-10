@@ -70,6 +70,10 @@ body {
     padding: 10px;
 }
 
+.sector-graph {
+    padding: 10px;
+}
+
 .currency-graph {
     padding: 10px;
 }
@@ -88,6 +92,11 @@ body {
 }
 
 .delete-portfolio {
+    padding: 10px;
+    max-width: 500px;
+}
+
+.delete-security {
     padding: 10px;
     max-width: 500px;
 }

@@ -1,0 +1,21 @@
+{% extends 'investments/layout.html' %}
+
+{% block Title %}Delete stock{% endblock %}
+
+{% block BodyContent %}
+    <h2>Do you want to delete ?</h2>
+    <h2>Ticker: {{ security.ticker }}</h2>
+    <h2>Figi: {{ security.figi }}</h2>
+    <h2>Name: {{ security.name }}</h2>
+    <h2>Price: {{ security.price }}</h2>
+    <h2>Currency: {{ security.currency }}</h2>
+    <h2>Sector: {{ security.sector }}</h2>
+    <h2>Country: {{ security.country }}</h2>
+    <h2>Not found on market?: {{ security.not_found_on_market }}</h2>
+    <div class="delete-security">
+        <form method="post">
+            {% csrf_token %}
+            <button class="btn btn-danger" type="submit" name="delete-security">Delete security</button>
+        </form>
+    </div>
+{% endblock %}

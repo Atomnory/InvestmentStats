@@ -5,36 +5,39 @@
 
 {% block BodyContent %}
 <div class="row">
-   <div class="column">
-       <div class="create-secs">
-           <form method="post">
+    <div class="column">
+        <div class="create-secs">
+            <form method="post">
                 {% csrf_token %}
                 <button class="btn btn-warning" type="submit" name="create-etfs">Create etfs</button>
-           </form>
-           <form method="post">
+            </form>
+            <form method="post">
                 {% csrf_token %}
                 <button class="btn btn-warning" type="submit" name="create-bonds">Create bonds</button>
-           </form>
-           <form method="post">
+            </form>
+            <form method="post">
                 {% csrf_token %}
                 <button class="btn btn-warning" type="submit" name="create-stocks">Create stocks</button>
-           </form>
-       </div>
-   </div>
-   <div class="column">
-       <div class="fill-secs">
-           <form method="post">
+            </form>
+        </div>
+    </div>
+    <div class="column">
+        <div class="fill-secs">
+            <form method="post">
                 {% csrf_token %}
                 <button class="btn btn-success" type="submit" name="define-info">Fill sector and country info</button>
-           </form>
-           {% if form_filling %}
-           <form method="post">
-               {% csrf_token %}
-               {{ form_filling|crispy }}
-               <button class="btn btn-info" type="submit" name="fill-info">Save info</button>
-           </form>
-           {% endif %}
-       </div>
-   </div>
+            </form>
+            {% if form_filling %}
+            <form method="post">
+                {% csrf_token %}
+                {{ form_filling|crispy }}
+                <button class="btn btn-info" type="submit" name="fill-info">Save info</button>
+            </form>
+            {% endif %}
+        </div>
+        {% if not_found %}
+            <a href="{% url 'delete_not_found' not_found.pk %}" class="btn btn-danger" role="button">Delete this not found stock</a>
+        {% endif %}
+    </div>
 </div>
 {% endblock %}

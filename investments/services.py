@@ -37,6 +37,10 @@ def create_portfolio(request: WSGIRequest):
         new_portfolio.save()
         graph_path_security = GraphPath(new_portfolio.pk, 'security').graph_path
         new_portfolio.securities_graph = ImageFieldFile(instance=None, name=graph_path_security, field=FileField())
+        graph_path_sector = GraphPath(new_portfolio.pk, 'sector').graph_path
+        new_portfolio.sector_graph = ImageFieldFile(instance=None, name=graph_path_sector, field=FileField())
+        # graph_path_country = GraphPath(new_portfolio.pk, 'country').graph_path
+        # new_portfolio.country_graph = ImageFieldFile(instance=None, name=graph_path_country, field=FileField())
         graph_path_currency = GraphPath(new_portfolio.pk, 'currency').graph_path
         new_portfolio.currency_graph = ImageFieldFile(instance=None, name=graph_path_currency, field=FileField())
         new_portfolio.save()
@@ -45,6 +49,10 @@ def create_portfolio(request: WSGIRequest):
 def update_portfolio_graphs_path(portfolio: Portfolio):
     graph_path_security = GraphPath(portfolio.pk, 'security').graph_path
     portfolio.securities_graph = ImageFieldFile(instance=None, name=graph_path_security, field=FileField())
+    graph_path_sector = GraphPath(portfolio.pk, 'sector').graph_path
+    portfolio.sector_graph = ImageFieldFile(instance=None, name=graph_path_sector, field=FileField())
+    # graph_path_country = GraphPath(portfolio.pk, 'country').graph_path
+    # portfolio.country_graph = ImageFieldFile(instance=None, name=graph_path_country, field=FileField())
     graph_path_currency = GraphPath(portfolio.pk, 'currency').graph_path
     portfolio.currency_graph = ImageFieldFile(instance=None, name=graph_path_currency, field=FileField())
     portfolio.save()
@@ -127,6 +135,7 @@ def update_portfolio_graphs(portfolio: Portfolio) -> None:
     # TODO: make update graph only once per day and after item changing
     plt.switch_backend('AGG')
     update_securities_graph(portfolio)
+    update_sector_graph(portfolio)
     update_currency_graph(portfolio)
 
 
@@ -137,6 +146,15 @@ def update_securities_graph(portfolio: Portfolio):
     graph_path = GraphPath(portfolio.pk, 'security')
     os.makedirs(graph_path.graph_full_root, exist_ok=True)
     fig_sec.savefig(graph_path.graph_full_path)
+
+
+def update_sector_graph(portfolio: Portfolio):
+    fig_sct, ax_sct = plt.subplots()
+    cost, labels = update_sector_graph_data(portfolio)
+    ax_sct.pie(cost, labels=labels, autopct='%1.1f%%')
+    graph_path = GraphPath(portfolio.pk, 'sector')
+    os.makedirs(graph_path.graph_full_root, exist_ok=True)
+    fig_sct.savefig(graph_path.graph_full_path)
 
 
 def update_currency_graph(portfolio: Portfolio):
@@ -168,8 +186,36 @@ def update_securities_graph_data(portfolio: Portfolio) -> tuple[list[Decimal], l
     return cost, labels
 
 
+def update_sector_graph_data(portfolio: Portfolio) -> tuple[list[Decimal], list[str]]:
+    items = get_portfolio_items(portfolio)
+    rate = get_last_exchange_rate()
+
+    cost = []
+    labels_names = []
+    for row in items:
+        currency_divider = 1
+        if row.security.currency == 'EUR':
+            currency_divider = Decimal(rate.eur_rate).quantize(Decimal('1.01'), rounding=ROUND_HALF_UP)
+        elif row.security.currency == 'RUB':
+            currency_divider = Decimal(rate.rub_rate).quantize(Decimal('1.01'), rounding=ROUND_HALF_UP)
+
+        if row.security.sector is None:
+            sector_name = 'Undefined sector'
+        else:
+            sector_name = row.security.get_sector_display()
+
+        if sector_name in labels_names:
+            i = labels_names.index(sector_name)
+            cost[i] += (row.security.price / currency_divider) * row.quantity
+        else:
+            labels_names.append(sector_name)
+            cost.append((row.security.price / currency_divider) * row.quantity)
+
+    print('$$ update sector graph')
+    return cost, labels_names
+
+
 def update_currency_graph_data(portfolio: Portfolio) -> tuple[list[Decimal], list[str]]:
-    # items = portfolio.portfolio_set.security.values('currency').annotate(total=Count('price')).order_by()
     items = get_portfolio_items(portfolio)
     rate = get_last_exchange_rate()
     cost = [0, 0, 0]
