@@ -13,7 +13,7 @@ from django.utils.functional import SimpleLazyObject
 from django.db.models import Count
 
 from config.settings import MEDIA_ROOT, EXCHANGE_API_KEY
-from .models import ExchangeRate, Portfolio, PortfolioItem
+from .models import ExchangeRate, Portfolio, PortfolioItem, Security
 from .forms import SecuritiesCreateForm, SecuritiesDeleteForm, SecuritiesIncreaseQuantityForm
 from .forms import PortfolioCreateForm
 from .tinkoff_client import update_security_price
@@ -35,15 +35,7 @@ def create_portfolio(request: WSGIRequest):
         new_portfolio = form_creating.save(commit=False)
         new_portfolio.investor = request.user
         new_portfolio.save()
-        graph_path_security = GraphPath(new_portfolio.pk, 'security').graph_path
-        new_portfolio.securities_graph = ImageFieldFile(instance=None, name=graph_path_security, field=FileField())
-        graph_path_sector = GraphPath(new_portfolio.pk, 'sector').graph_path
-        new_portfolio.sector_graph = ImageFieldFile(instance=None, name=graph_path_sector, field=FileField())
-        # graph_path_country = GraphPath(new_portfolio.pk, 'country').graph_path
-        # new_portfolio.country_graph = ImageFieldFile(instance=None, name=graph_path_country, field=FileField())
-        graph_path_currency = GraphPath(new_portfolio.pk, 'currency').graph_path
-        new_portfolio.currency_graph = ImageFieldFile(instance=None, name=graph_path_currency, field=FileField())
-        new_portfolio.save()
+        update_portfolio_graphs_path(new_portfolio)
 
 
 def update_portfolio_graphs_path(portfolio: Portfolio):
@@ -51,8 +43,10 @@ def update_portfolio_graphs_path(portfolio: Portfolio):
     portfolio.securities_graph = ImageFieldFile(instance=None, name=graph_path_security, field=FileField())
     graph_path_sector = GraphPath(portfolio.pk, 'sector').graph_path
     portfolio.sector_graph = ImageFieldFile(instance=None, name=graph_path_sector, field=FileField())
-    # graph_path_country = GraphPath(portfolio.pk, 'country').graph_path
-    # portfolio.country_graph = ImageFieldFile(instance=None, name=graph_path_country, field=FileField())
+    graph_path_country = GraphPath(portfolio.pk, 'country').graph_path
+    portfolio.country_graph = ImageFieldFile(instance=None, name=graph_path_country, field=FileField())
+    graph_path_market = GraphPath(portfolio.pk, 'market').graph_path
+    portfolio.market_graph = ImageFieldFile(instance=None, name=graph_path_market, field=FileField())
     graph_path_currency = GraphPath(portfolio.pk, 'currency').graph_path
     portfolio.currency_graph = ImageFieldFile(instance=None, name=graph_path_currency, field=FileField())
     portfolio.save()
@@ -136,6 +130,8 @@ def update_portfolio_graphs(portfolio: Portfolio) -> None:
     plt.switch_backend('AGG')
     update_securities_graph(portfolio)
     update_sector_graph(portfolio)
+    update_country_graph(portfolio)
+    update_market_graph(portfolio)
     update_currency_graph(portfolio)
 
 
@@ -157,6 +153,24 @@ def update_sector_graph(portfolio: Portfolio):
     fig_sct.savefig(graph_path.graph_full_path)
 
 
+def update_country_graph(portfolio: Portfolio):
+    fig_cnt, ax_cnt = plt.subplots()
+    cost, labels = update_country_graph_data(portfolio)
+    ax_cnt.pie(cost, labels=labels, autopct='%1.1f%%')
+    graph_path = GraphPath(portfolio.pk, 'country')
+    os.makedirs(graph_path.graph_full_root, exist_ok=True)
+    fig_cnt.savefig(graph_path.graph_full_path)
+
+
+def update_market_graph(portfolio: Portfolio):
+    fig_mrk, ax_mrk = plt.subplots()
+    cost, labels = update_market_graph_data(portfolio)
+    ax_mrk.pie(cost, labels=labels, autopct='%1.1f%%')
+    graph_path = GraphPath(portfolio.pk, 'market')
+    os.makedirs(graph_path.graph_full_root, exist_ok=True)
+    fig_mrk.savefig(graph_path.graph_full_path)
+
+
 def update_currency_graph(portfolio: Portfolio):
     fig_cur, ax_cur = plt.subplots()
     cost, labels = update_currency_graph_data(portfolio)
@@ -166,19 +180,30 @@ def update_currency_graph(portfolio: Portfolio):
     fig_cur.savefig(graph_path.graph_full_path)
 
 
+def get_eur_rate() -> Decimal:
+    rate = get_last_exchange_rate()
+    eur_rate = Decimal(rate.eur_rate).quantize(Decimal('1.01'), rounding=ROUND_HALF_UP)
+    return eur_rate
+
+
+def get_rub_rate() -> Decimal:
+    rate = get_last_exchange_rate()
+    rub_rate = Decimal(rate.rub_rate).quantize(Decimal('1.01'), rounding=ROUND_HALF_UP)
+    return rub_rate
+
+
 def update_securities_graph_data(portfolio: Portfolio) -> tuple[list[Decimal], list[str]]:
     items = get_portfolio_items(portfolio)
-    rate = get_last_exchange_rate()
     cost = []
     labels = []
     for row in items:
         if row.security.currency == 'USD':
             cost.append(row.security.price * row.quantity)
         elif row.security.currency == 'EUR':
-            eur_rate = Decimal(rate.eur_rate).quantize(Decimal('1.01'), rounding=ROUND_HALF_UP)
+            eur_rate = get_eur_rate()
             cost.append((row.security.price / eur_rate) * row.quantity)
         elif row.security.currency == 'RUB':
-            rub_rate = Decimal(rate.rub_rate).quantize(Decimal('1.01'), rounding=ROUND_HALF_UP)
+            rub_rate = get_rub_rate()
             cost.append((row.security.price / rub_rate) * row.quantity)
         labels.append(row.security.ticker)
 
@@ -188,16 +213,14 @@ def update_securities_graph_data(portfolio: Portfolio) -> tuple[list[Decimal], l
 
 def update_sector_graph_data(portfolio: Portfolio) -> tuple[list[Decimal], list[str]]:
     items = get_portfolio_items(portfolio)
-    rate = get_last_exchange_rate()
-
     cost = []
     labels_names = []
     for row in items:
         currency_divider = 1
         if row.security.currency == 'EUR':
-            currency_divider = Decimal(rate.eur_rate).quantize(Decimal('1.01'), rounding=ROUND_HALF_UP)
+            currency_divider = get_eur_rate()
         elif row.security.currency == 'RUB':
-            currency_divider = Decimal(rate.rub_rate).quantize(Decimal('1.01'), rounding=ROUND_HALF_UP)
+            currency_divider = get_rub_rate()
 
         if row.security.sector is None:
             sector_name = 'Undefined sector'
@@ -215,19 +238,91 @@ def update_sector_graph_data(portfolio: Portfolio) -> tuple[list[Decimal], list[
     return cost, labels_names
 
 
+def update_country_graph_data(portfolio: Portfolio) -> tuple[list[Decimal], list[str]]:
+    items = get_portfolio_items(portfolio)
+    countries = Security.objects.order_by('country').distinct('country')
+    # for i in countries:
+    #     print(i.country)
+
+    cost = []
+    labels_names = []
+    for row in items:
+        currency_divider = 1
+        if row.security.currency == 'EUR':
+            currency_divider = get_eur_rate()
+        elif row.security.currency == 'RUB':
+            currency_divider = get_rub_rate()
+
+        if row.security.country is None:
+            country_name = 'Undefined country'
+        else:
+            country_name = row.security.country.capitalize()
+
+        if country_name in labels_names:
+            i = labels_names.index(country_name)
+            cost[i] += (row.security.price / currency_divider) * row.quantity
+        else:
+            labels_names.append(country_name)
+            cost.append((row.security.price / currency_divider) * row.quantity)
+
+    print('$$ update country graph')
+    return cost, labels_names
+
+
+def update_market_graph_data(portfolio: Portfolio) -> tuple[list[Decimal], list[str]]:
+    items = get_portfolio_items(portfolio)
+
+    cost = []
+    labels_names = []
+    for row in items:
+        currency_divider = 1
+        if row.security.currency == 'EUR':
+            currency_divider = get_eur_rate()
+        elif row.security.currency == 'RUB':
+            currency_divider = get_rub_rate()
+
+        # Emerging Markets
+        # Developed Markets
+        # All Country World
+
+        if row.security.country == 'United States':
+            market_name = row.security.country
+        elif row.security.country == 'Russia':
+            market_name = row.security.country
+        elif row.security.country in ('Emerging Markets', 'Emerging markets', 'Kazakhstan', 'China', 'Taiwan', 'Brazil',
+                                      'India', 'Mexico', 'Turkey', 'South Africa'):
+            market_name = 'Emerging Markets'
+        elif row.security.country in ('Developed Markets', 'Germany', 'Japan', 'France', 'Canada', 'Italy',
+                                      'Netherlands', 'Norway', 'Portugal', 'South Korea', 'Spain', 'Belgium',
+                                      'Switzerland',
+                                      'United Kingdom', 'Australia', 'Europe', 'Ireland', 'Sweden', 'USA', 'Bermuda'):
+            market_name = 'Developed Markets'
+        else:
+            market_name = 'All Country World'
+
+        if market_name in labels_names:
+            i = labels_names.index(market_name)
+            cost[i] += (row.security.price / currency_divider) * row.quantity
+        else:
+            labels_names.append(market_name)
+            cost.append((row.security.price / currency_divider) * row.quantity)
+
+    print('$$ update market graph')
+    return cost, labels_names
+
+
 def update_currency_graph_data(portfolio: Portfolio) -> tuple[list[Decimal], list[str]]:
     items = get_portfolio_items(portfolio)
-    rate = get_last_exchange_rate()
     cost = [0, 0, 0]
     labels = ('USD', 'EUR', 'RUB')
     for row in items:
         if row.security.currency == 'USD':
             cost[0] += row.security.price * row.quantity
         elif row.security.currency == 'EUR':
-            eur_rate = Decimal(rate.eur_rate).quantize(Decimal('1.01'), rounding=ROUND_HALF_UP)
+            eur_rate = get_eur_rate()
             cost[1] += (row.security.price / eur_rate) * row.quantity
         elif row.security.currency == 'RUB':
-            rub_rate = Decimal(rate.rub_rate).quantize(Decimal('1.01'), rounding=ROUND_HALF_UP)
+            rub_rate = get_rub_rate()
             cost[2] += (row.security.price / rub_rate) * row.quantity
 
     res_cost = []
@@ -301,6 +396,8 @@ class GraphPath:
             self._graph_name = os.path.join('sector_pie.png')
         elif self._graph_type == 'country':
             self._graph_name = os.path.join('country_pie.png')
+        elif self._graph_type == 'market':
+            self._graph_name = os.path.join('market_pie.png')
         elif self._graph_type == 'currency':
             self._graph_name = os.path.join('currency_pie.png')
         else:

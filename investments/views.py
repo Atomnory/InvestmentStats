@@ -44,17 +44,14 @@ def portfolio_page(request, portfolio_pk):
         securities = get_formatted_securities_list(portfolio)
         update_portfolio_graphs(portfolio)
         update_portfolio_graphs_path(portfolio)
-        securities_graph = portfolio.securities_graph
-        sector_graph = portfolio.sector_graph
-        # country_graph = portfolio.country_graph
-        currency_graph = portfolio.currency_graph
 
         portfolio_page_data = {
             'securities': securities,
-            'securities_graph': securities_graph,
-            'sector_graph': sector_graph,
-            # 'country_graph': country_graph,
-            'currency_graph': currency_graph,
+            'securities_graph': portfolio.securities_graph,
+            'sector_graph': portfolio.sector_graph,
+            'country_graph': portfolio.country_graph,
+            'market_graph': portfolio.market_graph,
+            'currency_graph': portfolio.currency_graph,
             'form_creating': forms['form_creating'],
             'form_deleting': forms['form_deleting'],
             'form_increasing': forms['form_increasing'],

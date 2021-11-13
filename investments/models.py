@@ -56,17 +56,11 @@ class ExchangeRate(models.Model):
 class Portfolio(models.Model):
     investor = models.ForeignKey(User, on_delete=models.CASCADE)
     name = models.CharField('Portfolio name', max_length=100)
-    # graph = models.ImageField('Portfolio pie graph', upload_to='portfolio_graph', null=True)    # delete
-    securities_graph = models.ImageField('Securities pie graph', upload_to='portfolio_graph', null=True)    # securities_graph that displays all securities in portfolio
-    sector_graph = models.ImageField('Sector pie graph', upload_to='portfolio_graph', null=True)    # sector_graph that displays all securities grouped by sector not case sensitive
-    # sector_graph may have two versions:
-            # distinguish by Security.sector
-            # and distinguish by Security.sector grouped by Security.type
-    country_graph = models.ImageField('Country pie graph', upload_to='portfolio_graph', null=True)  # country_graph that displays all securities grouped by country not case sensitive
-    # country_graph may have two versions:
-            # distinguish by Security.country
-            # and distinguish by Security.country grouped by types of World Market
-    currency_graph = models.ImageField('Currency pie graph', upload_to='portfolio_graph', null=True)    # currency_graph that displays all securities grouped by currency
+    securities_graph = models.ImageField('Securities pie graph', upload_to='portfolio_graph', null=True)
+    sector_graph = models.ImageField('Sector pie graph', upload_to='portfolio_graph', null=True)
+    country_graph = models.ImageField('Country pie graph', upload_to='portfolio_graph', null=True)  # displays distinct countries
+    market_graph = models.ImageField('Market pie graph', upload_to='portfolio_graph', null=True)  # displays countries joined in markets exclude USA and Russia
+    currency_graph = models.ImageField('Currency pie graph', upload_to='portfolio_graph', null=True)
     last_updated = models.DateField('Last update', auto_now=True)   # last_updated will be using for update graphs once per day or if items are changed
 
     def __str__(self):

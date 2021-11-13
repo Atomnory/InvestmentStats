@@ -15,9 +15,6 @@ from .models import Security
 from .forms import SecurityFillInformationForm
 
 # TODO: add Model LastUpdate for monthly updating Securities and daily updating YAHOO API using
-# Emerging Markets
-# Developed Markets
-# All Country World
 
 
 def update_security_price(security: Security):
