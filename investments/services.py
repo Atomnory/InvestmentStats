@@ -13,7 +13,7 @@ from django.utils.functional import SimpleLazyObject
 from django.db.models import Count
 
 from config.settings import MEDIA_ROOT, EXCHANGE_API_KEY
-from .models import ExchangeRate, Portfolio, PortfolioItem, Security
+from .models import ExchangeRate, Portfolio, PortfolioItem
 from .forms import SecuritiesCreateForm, SecuritiesDeleteForm, SecuritiesIncreaseQuantityForm
 from .forms import PortfolioCreateForm
 from .tinkoff_client import update_security_price
@@ -125,258 +125,274 @@ def get_portfolio_items(portfolio: Portfolio) -> list[PortfolioItem]:
     return portfolio.portfolioitem_set.all()
 
 
-def update_portfolio_graphs(portfolio: Portfolio) -> None:
+def update_portfolio_graphs(portfolio: Portfolio):
     # TODO: make update graph only once per day and after item changing
-    plt.switch_backend('AGG')
-    update_securities_graph(portfolio)
-    update_sector_graph(portfolio)
-    update_country_graph(portfolio)
-    update_market_graph(portfolio)
-    update_currency_graph(portfolio)
+    # plt.switch_backend('AGG')
+    SecurityGraphDrawer(portfolio).update_graph()
+    SectorGraphDrawer(portfolio).update_graph()
+    CountryGraphDrawer(portfolio).update_graph()
+    MarketGraphDrawer(portfolio).update_graph()
+    CurrencyGraphDrawer(portfolio).update_graph()
+
+# countries = Security.objects.order_by('country').distinct('country')
+# for i in countries:
+#     print(i.country)
 
 
-def update_securities_graph(portfolio: Portfolio):
-    fig_sec, ax_sec = plt.subplots()
-    cost, labels = update_securities_graph_data(portfolio)
-    ax_sec.pie(cost, labels=labels, autopct='%1.1f%%')
-    graph_path = GraphPath(portfolio.pk, 'security')
-    os.makedirs(graph_path.graph_full_root, exist_ok=True)
-    fig_sec.savefig(graph_path.graph_full_path)
+class AbstractGraphDrawer:
+    def __init__(self, portfolio: Portfolio):
+        self._portfolio = portfolio
+        self._graph_name = None
+        self._graph_path = None
+        self._fig = None
+        self._axe = None
+        self._cost = None
+        self._labels = None
+        self._calculator = AbstractGraphDataCalculator(portfolio)
+
+    def update_graph(self):
+        self._set_graph_path()
+        self._update_graph_data()
+        self._draw_graph()
+        self._save_graph()
+
+    def _set_graph_path(self):
+        self._graph_path = GraphPath(self._portfolio.pk, self._graph_name)
+
+    def _update_graph_data(self):
+        self._cost = self._calculator.costs
+        self._labels = self._calculator.labels
+
+    def _draw_graph(self):
+        plt.switch_backend('AGG')
+        self._fig, self._axe = plt.subplots()
+        self._axe.pie(self._cost, labels=self._labels, autopct='%1.1f%%')
+
+    def _save_graph(self):
+        os.makedirs(self._graph_path.graph_full_root, exist_ok=True)
+        self._fig.savefig(self._graph_path.graph_full_path)
 
 
-def update_sector_graph(portfolio: Portfolio):
-    fig_sct, ax_sct = plt.subplots()
-    cost, labels = update_sector_graph_data(portfolio)
-    ax_sct.pie(cost, labels=labels, autopct='%1.1f%%')
-    graph_path = GraphPath(portfolio.pk, 'sector')
-    os.makedirs(graph_path.graph_full_root, exist_ok=True)
-    fig_sct.savefig(graph_path.graph_full_path)
+class SecurityGraphDrawer(AbstractGraphDrawer):
+    def __init__(self, portfolio: Portfolio):
+        super().__init__(portfolio)
+        self._graph_name = 'security'
+        self._calculator = SecurityGraphDataCalculator(portfolio)
 
 
-def update_country_graph(portfolio: Portfolio):
-    fig_cnt, ax_cnt = plt.subplots()
-    cost, labels = update_country_graph_data(portfolio)
-    ax_cnt.pie(cost, labels=labels, autopct='%1.1f%%')
-    graph_path = GraphPath(portfolio.pk, 'country')
-    os.makedirs(graph_path.graph_full_root, exist_ok=True)
-    fig_cnt.savefig(graph_path.graph_full_path)
+class SectorGraphDrawer(AbstractGraphDrawer):
+    def __init__(self, portfolio: Portfolio):
+        super().__init__(portfolio)
+        self._graph_name = 'sector'
+        self._calculator = SectorGraphDataCalculator(portfolio)
 
 
-def update_market_graph(portfolio: Portfolio):
-    fig_mrk, ax_mrk = plt.subplots()
-    cost, labels = update_market_graph_data(portfolio)
-    ax_mrk.pie(cost, labels=labels, autopct='%1.1f%%')
-    graph_path = GraphPath(portfolio.pk, 'market')
-    os.makedirs(graph_path.graph_full_root, exist_ok=True)
-    fig_mrk.savefig(graph_path.graph_full_path)
+class CountryGraphDrawer(AbstractGraphDrawer):
+    def __init__(self, portfolio: Portfolio):
+        super().__init__(portfolio)
+        self._graph_name = 'country'
+        self._calculator = CountryGraphDataCalculator(portfolio)
 
 
-def update_currency_graph(portfolio: Portfolio):
-    fig_cur, ax_cur = plt.subplots()
-    cost, labels = update_currency_graph_data(portfolio)
-    ax_cur.pie(cost, labels=labels, autopct='%1.1f%%')
-    graph_path = GraphPath(portfolio.pk, 'currency')
-    os.makedirs(graph_path.graph_full_root, exist_ok=True)
-    fig_cur.savefig(graph_path.graph_full_path)
+class MarketGraphDrawer(AbstractGraphDrawer):
+    def __init__(self, portfolio: Portfolio):
+        super().__init__(portfolio)
+        self._graph_name = 'market'
+        self._calculator = MarketGraphDataCalculator(portfolio)
 
 
-def get_eur_rate() -> Decimal:
-    rate = get_last_exchange_rate()
-    eur_rate = Decimal(rate.eur_rate).quantize(Decimal('1.01'), rounding=ROUND_HALF_UP)
-    return eur_rate
+class CurrencyGraphDrawer(AbstractGraphDrawer):
+    def __init__(self, portfolio: Portfolio):
+        super().__init__(portfolio)
+        self._graph_name = 'currency'
+        self._calculator = CurrencyGraphDataCalculator(portfolio)
 
 
-def get_rub_rate() -> Decimal:
-    rate = get_last_exchange_rate()
-    rub_rate = Decimal(rate.rub_rate).quantize(Decimal('1.01'), rounding=ROUND_HALF_UP)
-    return rub_rate
+class AbstractGraphDataCalculator:
+    def __init__(self, portfolio: Portfolio):
+        self._exchanger = Exchanger()
+        self._items = get_portfolio_items(portfolio)
+        self._costs = []
+        self._labels = []
+        self._item = None
+        self._currency_divider = None
+        self._cost = None
+
+    def _update_graph_data(self):
+        for item in self._items:
+            self._item = item
+            self._get_currency_divider()
+            self._process_item()
+
+    def _get_currency_divider(self):
+        if self._item.security.currency == 'USD':
+            self._currency_divider = 1
+        elif self._item.security.currency == 'EUR':
+            self._currency_divider = self._exchanger.eur_rate
+        elif self._item.security.currency == 'RUB':
+            self._currency_divider = self._exchanger.rub_rate
+
+    def _process_item(self):
+        pass
+
+    def _calculate_cost(self):
+        self._cost = (self._item.security.price / self._currency_divider) * self._item.quantity
+
+    def _increase_existing_item(self, label: str):
+        i = self._labels.index(label)
+        self._costs[i] += self._cost
+
+    def _append_new_item(self, label: str):
+        self._costs.append(self._cost)
+        self._labels.append(label)
+
+    def _increase_label_cost_if_in_labels_or_append_new(self, label: str):
+        self._calculate_cost()
+        if label in self._labels:
+            self._increase_existing_item(label)
+        else:
+            self._append_new_item(label)
+
+    @property
+    def costs(self):
+        return self._costs
+
+    @property
+    def labels(self):
+        return self._labels
 
 
-def update_securities_graph_data(portfolio: Portfolio) -> tuple[list[Decimal], list[str]]:
-    items = get_portfolio_items(portfolio)
-    cost = []
-    labels = []
-    for row in items:
-        if row.security.currency == 'USD':
-            cost.append(row.security.price * row.quantity)
-        elif row.security.currency == 'EUR':
-            eur_rate = get_eur_rate()
-            cost.append((row.security.price / eur_rate) * row.quantity)
-        elif row.security.currency == 'RUB':
-            rub_rate = get_rub_rate()
-            cost.append((row.security.price / rub_rate) * row.quantity)
-        labels.append(row.security.ticker)
+class SecurityGraphDataCalculator(AbstractGraphDataCalculator):
+    def __init__(self, portfolio: Portfolio):
+        super().__init__(portfolio)
+        self._update_graph_data()
 
-    print('$$ update security graph')
-    return cost, labels
+    def _process_item(self):
+        self._calculate_cost()
+        self._append_new_item(self._item.security.ticker)
 
 
-def update_sector_graph_data(portfolio: Portfolio) -> tuple[list[Decimal], list[str]]:
-    items = get_portfolio_items(portfolio)
-    cost = []
-    labels_names = []
-    for row in items:
-        currency_divider = 1
-        if row.security.currency == 'EUR':
-            currency_divider = get_eur_rate()
-        elif row.security.currency == 'RUB':
-            currency_divider = get_rub_rate()
+class SectorGraphDataCalculator(AbstractGraphDataCalculator):
+    def __init__(self, portfolio: Portfolio):
+        super().__init__(portfolio)
+        self._update_graph_data()
 
-        if row.security.sector is None:
+    def _process_item(self):
+        if self._item.security.sector is None:
             sector_name = 'Undefined sector'
         else:
-            sector_name = row.security.get_sector_display()
-
-        if sector_name in labels_names:
-            i = labels_names.index(sector_name)
-            cost[i] += (row.security.price / currency_divider) * row.quantity
-        else:
-            labels_names.append(sector_name)
-            cost.append((row.security.price / currency_divider) * row.quantity)
-
-    print('$$ update sector graph')
-    return cost, labels_names
+            sector_name = self._item.security.get_sector_display()
+        self._increase_label_cost_if_in_labels_or_append_new(sector_name)
 
 
-def update_country_graph_data(portfolio: Portfolio) -> tuple[list[Decimal], list[str]]:
-    items = get_portfolio_items(portfolio)
-    countries = Security.objects.order_by('country').distinct('country')
-    # for i in countries:
-    #     print(i.country)
+class CountryGraphDataCalculator(AbstractGraphDataCalculator):
+    def __init__(self, portfolio: Portfolio):
+        super().__init__(portfolio)
+        self._update_graph_data()
 
-    cost = []
-    labels_names = []
-    for row in items:
-        currency_divider = 1
-        if row.security.currency == 'EUR':
-            currency_divider = get_eur_rate()
-        elif row.security.currency == 'RUB':
-            currency_divider = get_rub_rate()
-
-        if row.security.country is None:
+    def _process_item(self):
+        if self._item.security.country is None:
             country_name = 'Undefined country'
         else:
-            country_name = row.security.country.capitalize()
-
-        if country_name in labels_names:
-            i = labels_names.index(country_name)
-            cost[i] += (row.security.price / currency_divider) * row.quantity
-        else:
-            labels_names.append(country_name)
-            cost.append((row.security.price / currency_divider) * row.quantity)
-
-    print('$$ update country graph')
-    return cost, labels_names
+            country_name = self._item.security.country.capitalize()
+        self._increase_label_cost_if_in_labels_or_append_new(country_name)
 
 
-def update_market_graph_data(portfolio: Portfolio) -> tuple[list[Decimal], list[str]]:
-    items = get_portfolio_items(portfolio)
+class MarketGraphDataCalculator(AbstractGraphDataCalculator):
+    def __init__(self, portfolio: Portfolio):
+        super().__init__(portfolio)
+        self._update_graph_data()
 
-    cost = []
-    labels_names = []
-    for row in items:
-        currency_divider = 1
-        if row.security.currency == 'EUR':
-            currency_divider = get_eur_rate()
-        elif row.security.currency == 'RUB':
-            currency_divider = get_rub_rate()
-
+    def _process_item(self):
         # Emerging Markets
         # Developed Markets
         # All Country World
-
-        if row.security.country == 'United States':
-            market_name = row.security.country
-        elif row.security.country == 'Russia':
-            market_name = row.security.country
-        elif row.security.country in ('Emerging Markets', 'Emerging markets', 'Kazakhstan', 'China', 'Taiwan', 'Brazil',
-                                      'India', 'Mexico', 'Turkey', 'South Africa'):
+        if self._item.security.country == 'United States':
+            market_name = self._item.security.country
+        elif self._item.security.country == 'Russia':
+            market_name = self._item.security.country
+        elif self._item.security.country in (
+                'Emerging Markets', 'Emerging markets', 'Kazakhstan', 'China', 'Taiwan', 'Brazil',
+                'India', 'Mexico', 'Turkey', 'South Africa'):
             market_name = 'Emerging Markets'
-        elif row.security.country in ('Developed Markets', 'Germany', 'Japan', 'France', 'Canada', 'Italy',
-                                      'Netherlands', 'Norway', 'Portugal', 'South Korea', 'Spain', 'Belgium',
-                                      'Switzerland',
-                                      'United Kingdom', 'Australia', 'Europe', 'Ireland', 'Sweden', 'USA', 'Bermuda'):
+        elif self._item.security.country in ('Developed Markets', 'Germany', 'Japan', 'France', 'Canada', 'Italy',
+                                       'Netherlands', 'Norway', 'Portugal', 'South Korea', 'Spain', 'Belgium',
+                                       'Switzerland', 'Israel'
+                                                      'United Kingdom', 'Australia', 'Europe', 'Ireland', 'Sweden',
+                                       'USA',
+                                       'Bermuda'):
             market_name = 'Developed Markets'
         else:
             market_name = 'All Country World'
-
-        if market_name in labels_names:
-            i = labels_names.index(market_name)
-            cost[i] += (row.security.price / currency_divider) * row.quantity
-        else:
-            labels_names.append(market_name)
-            cost.append((row.security.price / currency_divider) * row.quantity)
-
-    print('$$ update market graph')
-    return cost, labels_names
+        self._increase_label_cost_if_in_labels_or_append_new(market_name)
 
 
-def update_currency_graph_data(portfolio: Portfolio) -> tuple[list[Decimal], list[str]]:
-    items = get_portfolio_items(portfolio)
-    cost = [0, 0, 0]
-    labels = ('USD', 'EUR', 'RUB')
-    for row in items:
-        if row.security.currency == 'USD':
-            cost[0] += row.security.price * row.quantity
-        elif row.security.currency == 'EUR':
-            eur_rate = get_eur_rate()
-            cost[1] += (row.security.price / eur_rate) * row.quantity
-        elif row.security.currency == 'RUB':
-            rub_rate = get_rub_rate()
-            cost[2] += (row.security.price / rub_rate) * row.quantity
+class CurrencyGraphDataCalculator(AbstractGraphDataCalculator):
+    def __init__(self, portfolio: Portfolio):
+        super().__init__(portfolio)
+        self._update_graph_data()
 
-    res_cost = []
-    res_labels = []
-    for i, data in enumerate(cost):
-        if data > 0:
-            res_cost.append(data)
-            res_labels.append(labels[i])
-
-    print('$$ update currency graph')
-    return res_cost, res_labels
+    def _process_item(self):
+        self._increase_label_cost_if_in_labels_or_append_new(self._item.security.currency)
 
 
-def get_last_exchange_rate() -> ExchangeRate:
-    try:
-        rate = update_exchange_rate()
-    except ExchangeRate.DoesNotExist:
-        rate = create_exchange_rate()
-    return rate
+class Exchanger:
+    def __init__(self):
+        self._rates_data = None
+        self._exr_obj = None
+        self._today = get_today()
+        self._update_rates()
 
+    def _update_rates(self):
+        self._try_get_exchange_rate()
+        if self._is_exchange_rate_object_expired():
+            self._request_conversion_rates_data()
+            self._update_exchange_rate_object()
 
-def get_exchange_rate_object() -> ExchangeRate:
-    return ExchangeRate.objects.get(pk=1)
+    def _try_get_exchange_rate(self):
+        try:
+            self._get_exchange_rate_object()
+        except ExchangeRate.DoesNotExist:
+            self._create_exchange_rate_object()
 
+    def _is_exchange_rate_object_expired(self) -> bool:
+        return True if self._exr_obj.last_updated != self._today else False
 
-def create_exchange_rate() -> ExchangeRate:
-    today = get_today()
-    rates_data = get_conversion_rates()
-    rate = ExchangeRate(pk=1, last_updated=today, eur_rate=rates_data['EUR'], rub_rate=rates_data['RUB'])
-    print('$$ create new ExchangeRate')
-    rate.save()
-    return rate
-
-
-def update_exchange_rate() -> ExchangeRate:
-    rate = get_exchange_rate_object()
-    if rate.last_updated != get_today():
+    def _update_exchange_rate_object(self):
+        self._exr_obj.eur_rate = self._rates_data['EUR']
+        self._exr_obj.rub_rate = self._rates_data['RUB']
+        self._exr_obj.save()
         print('$$ Exchange rate is expired. Getting update.')
-        rates_data = get_conversion_rates()
-        rate.eur_rate = rates_data['EUR']
-        rate.rub_rate = rates_data['RUB']
-        rate.save()
-    return rate
+
+    def _get_exchange_rate_object(self):
+        self._exr_obj = ExchangeRate.objects.get(pk=1)
+
+    def _create_exchange_rate_object(self):
+        self._request_conversion_rates_data()
+        self._create_exchange_rate()
+        print('$$ Create new ExchangeRate')
+
+    def _request_conversion_rates_data(self):
+        url = f'https://v6.exchangerate-api.com/v6/{EXCHANGE_API_KEY}/latest/USD'
+        response = requests.get(url)
+        self._rates_data = response.json()['conversion_rates']
+
+    def _create_exchange_rate(self):
+        self._exr_obj = ExchangeRate(pk=1, last_updated=self._today, eur_rate=self._rates_data['EUR'],
+                                     rub_rate=self._rates_data['RUB'])
+        self._exr_obj.save()
+
+    @property
+    def eur_rate(self) -> Decimal:
+        return Decimal(self._exr_obj.eur_rate).quantize(Decimal('1.01'), rounding=ROUND_HALF_UP)
+
+    @property
+    def rub_rate(self) -> Decimal:
+        return Decimal(self._exr_obj.rub_rate).quantize(Decimal('1.01'), rounding=ROUND_HALF_UP)
 
 
 def get_today() -> datetime.date:
     return datetime.datetime.utcnow().date()
-
-
-def get_conversion_rates() -> dict:
-    url = f'https://v6.exchangerate-api.com/v6/{EXCHANGE_API_KEY}/latest/USD'
-    response = requests.get(url)
-    data = response.json()['conversion_rates']
-    return data
 
 
 class GraphPath:
@@ -391,7 +407,7 @@ class GraphPath:
 
     def _define_name_and_paths(self):
         if self._graph_type == 'security':
-            self._graph_name = os.path.join('securities_pie.png')
+            self._graph_name = os.path.join('security_pie.png')
         elif self._graph_type == 'sector':
             self._graph_name = os.path.join('sector_pie.png')
         elif self._graph_type == 'country':

@@ -236,6 +236,8 @@ def mark_security_as_not_found(row: Security):
 
 def save_stock_info(row: Security, sector: str, country: str):
     row.sector = define_short_sector_name(sector)
+    if row.sector is None:
+        mark_security_as_not_found(row)
     if row.currency == 'RUB':
         row.country = 'Russia'
     else:
