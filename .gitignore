@@ -149,4 +149,6 @@ cython_debug/
 /*/migrations/
 *.png
 /media/*.txt
+!/media/stock_stop_list.txt
+/.vscode/
 

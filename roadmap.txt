@@ -1,5 +1,5 @@
 1. Use Select2 for security searching
 2. Update web-design
-3. Add graph with partition depends on country and sector
+3. Add bonds
 4. Add and use Javascript animation to display pie graph instead of Matplotlib
 5. Add Django REST Framework using
