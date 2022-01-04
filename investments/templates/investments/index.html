@@ -4,22 +4,26 @@
 {% block Title %}Portfolios{% endblock %}
 
 {% block BodyContent %}
+<div class="container">
+  <div class="row">
     {% if portfolios %}
-        <ul>
+        <div class="col list-group mt-3">
         {% for row in portfolios %}
-            <li><a href="{% url 'portfolio' row.pk %}">{{ row.name }}</a></li>
+            <a class="list-group-item list-group-item-action" href="{% url 'portfolio' row.pk %}">{{ row.name }}</a>
         {% endfor %}
-        </ul>
+        </div>
     {% endif %}
     {% if not user.is_authenticated %}
         <h2>You should be login to add portfolio and securities.</h2>
     {% else %}
-        <div class="create-portfolio">
+        <div class="col create-portfolio mt-2">
             <form method="post">
                 {% csrf_token %}
                 {{ form_creating|crispy }}
-                <button class="btn btn-success" type="submit" name="create-portfolio">Create portfolio</button>
+                <button class="btn btn-success mt-1" type="submit" name="create-portfolio">Create portfolio</button>
             </form>
         </div>
     {% endif %}
+    </div>
+</div>
 {% endblock %}

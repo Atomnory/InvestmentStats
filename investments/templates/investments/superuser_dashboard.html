@@ -4,40 +4,42 @@
 {% block Title %}Superuser Dashboard{% endblock %}
 
 {% block BodyContent %}
-<div class="row">
-    <div class="column">
-        <div class="create-secs">
-            <form method="post">
-                {% csrf_token %}
-                <button class="btn btn-warning" type="submit" name="create-etfs">Create etfs</button>
-            </form>
-            <form method="post">
-                {% csrf_token %}
-                <button class="btn btn-warning" type="submit" name="create-bonds">Create bonds</button>
-            </form>
-            <form method="post">
-                {% csrf_token %}
-                <button class="btn btn-warning" type="submit" name="create-stocks">Create stocks</button>
-            </form>
+<div class="container">
+    <div class="row">
+        <div class="col">
+            <div class="create-secs">
+                <form method="post">
+                    {% csrf_token %}
+                    <button class="btn btn-warning mb-1" type="submit" name="create-etfs">Create etfs</button>
+                </form>
+                <form method="post">
+                    {% csrf_token %}
+                    <button class="btn btn-warning mb-1" type="submit" name="create-bonds">Create bonds</button>
+                </form>
+                <form method="post">
+                    {% csrf_token %}
+                    <button class="btn btn-warning mb-1" type="submit" name="create-stocks">Create stocks</button>
+                </form>
+            </div>
         </div>
-    </div>
-    <div class="column">
-        <div class="fill-secs">
-            <form method="post">
-                {% csrf_token %}
-                <button class="btn btn-success" type="submit" name="define-info">Fill sector and country info</button>
-            </form>
-            {% if form_filling %}
-            <form method="post">
-                {% csrf_token %}
-                {{ form_filling|crispy }}
-                <button class="btn btn-info" type="submit" name="fill-info">Save info</button>
-            </form>
+        <div class="col">
+            <div class="fill-secs">
+                <form method="post">
+                    {% csrf_token %}
+                    <button class="btn btn-success mb-1" type="submit" name="define-info">Fill sector and country info</button>
+                </form>
+                {% if form_filling %}
+                <form method="post">
+                    {% csrf_token %}
+                    {{ form_filling|crispy }}
+                    <button class="btn btn-info mt-1" type="submit" name="fill-info">Save info</button>
+                </form>
+                {% endif %}
+            </div>
+            {% if not_found %}
+                <a href="{% url 'delete_not_found' not_found.pk %}" class="btn btn-danger mt-1" role="button">Delete this not found stock</a>
             {% endif %}
         </div>
-        {% if not_found %}
-            <a href="{% url 'delete_not_found' not_found.pk %}" class="btn btn-danger" role="button">Delete this not found stock</a>
-        {% endif %}
     </div>
 </div>
 {% endblock %}

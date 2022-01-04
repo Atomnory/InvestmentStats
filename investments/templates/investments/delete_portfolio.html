@@ -3,11 +3,11 @@
 {% block Title %}Delete portfolio{% endblock %}
 
 {% block BodyContent %}
-    <h2>Do you want to delete {{ portfolio.name }} ?</h2>
-    <div class="delete-portfolio">
+    <h2  class="mx-2 px-2">Do you want to delete {{ portfolio.name }} ?</h2>
+    <div class="delete-portfolio mx-2 px-2">
         <form method="post">
             {% csrf_token %}
-            <button class="btn btn-danger" type="submit" name="delete-portfolio">Delete portfolio</button>
+            <button class="btn btn-danger my-1" type="submit" name="delete-portfolio">Delete portfolio</button>
         </form>
     </div>
 {% endblock %}

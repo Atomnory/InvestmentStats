@@ -58,6 +58,7 @@ class SecurityFillInformationForm(forms.ModelForm):
         self.fields['sector'].required = True
         self.fields['sector'].initial = security.sector
         self.fields['country'].required = True
+        self.fields['country'].initial = security.country
 
     class Meta:
         model = Security

@@ -7,6 +7,7 @@ from .exchanger import Exchanger
 from .utils import get_portfolio_items
 
 
+# TODO: One security has not 100% on graph
 class AbstractGraphDrawer:
     def __init__(self, portfolio: Portfolio):
         self._portfolio = portfolio

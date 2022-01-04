@@ -1,6 +1,6 @@
 import time
 import requests
-from typing import Optional
+from typing import Optional, List
 from datetime import datetime
 from dateutil.parser import parse
 from decimal import Decimal
@@ -74,6 +74,7 @@ def delete_not_found_stock_and_add_to_stop_list(not_found_stock: Security):
 def process_securities(data: MarketInstrumentListResponse):
     instruments = data.dict()['payload']['instruments']
     length = len(instruments) - 1
+    existing_tickers = get_all_tickers()
     for i, row in enumerate(instruments):
         if i > 0 and i % 100 == 0:
             wait_60()
@@ -84,7 +85,10 @@ def process_securities(data: MarketInstrumentListResponse):
         new_ticker = define_ticker(row['ticker'], security_type, currency)
 
         if is_in_stop_list(new_ticker, security_type):
-            print_handle_securities_in_stop_list(i, length, new_ticker)
+            print_process_securities_in_stop_list(i, length, new_ticker)
+            continue
+        elif new_ticker in existing_tickers:
+            print_process_securities_exist(i, length, new_ticker)
             continue
 
         new_sector = define_sector(security_type)
@@ -93,26 +97,26 @@ def process_securities(data: MarketInstrumentListResponse):
         try:
             price = get_security_price(figi)
         except TooManyRequestsError as e:
-            print_handle_securities_error(row, i, length, new_ticker, e)
+            print_process_securities_error(row, i, length, new_ticker, e)
             wait_60()
             price = get_security_price(figi)
         except UnexpectedError as e:
-            print_handle_securities_error(row, i, length, new_ticker, e)
+            print_process_securities_error(row, i, length, new_ticker, e)
             continue
 
         try:
             save_security(new_ticker, figi, row['name'], price, currency, new_sector, None, not_found)
         except Exception as e:
-            print_handle_securities_error(row, i, length, new_ticker, e)
+            print_process_securities_error(row, i, length, new_ticker, e)
         else:
-            print_handle_securities_success(i, length, new_ticker)
+            print_process_securities_success(i, length, new_ticker)
 
 
 def wait_60():
     time.sleep(60)
 
 
-def is_in_stop_list(ticker: str, security_type: str):
+def is_in_stop_list(ticker: str, security_type: str) -> bool:
     stock_stop_list = get_stock_stop_list()
     if not stock_stop_list:
         return False
@@ -120,6 +124,14 @@ def is_in_stop_list(ticker: str, security_type: str):
         if ticker in stock_stop_list:
             return True
     return False
+
+
+def get_all_tickers() -> List[str]:
+    securities = Security.objects.all()
+    tickers = []
+    for row in securities:
+        tickers.append(row.ticker)
+    return tickers
 
 
 def define_ticker(ticker: str, security_type: str, currency: str) -> str:
@@ -144,7 +156,7 @@ def define_not_found(security_type: str) -> bool:
     if security_type == 'Etf':
         return True
     elif security_type == 'Bond':
-        return True
+        return False
     elif security_type == 'Stock':
         return False
     else:
@@ -186,18 +198,22 @@ def save_security(ticker: str, figi: str, name: str, price: Decimal, currency: s
     sec.save()
 
 
-def print_handle_securities_error(row: dict, i: int, length: int, ticker: str, e: Exception):
+def print_process_securities_error(row: dict, i: int, length: int, ticker: str, e: Exception):
     print(row)
     print(i, '/', length, '(' + str(ticker) + ')')
     print('ERROR:', e)
 
 
-def print_handle_securities_success(i: int, length: int, ticker: str):
+def print_process_securities_success(i: int, length: int, ticker: str):
     print(i, '/', length, '(' + str(ticker) + ')')
 
 
-def print_handle_securities_in_stop_list(i: int, length: int, ticker: str):
+def print_process_securities_in_stop_list(i: int, length: int, ticker: str):
     print(i, '/', length, '(' + str(ticker) + ')', '- is in stop list. It will not be added.')
+
+
+def print_process_securities_exist(i: int, length: int, ticker: str):
+    print(i, '/', length, '(' + str(ticker) + ')', '- has added already.')
 
 
 class StockNotFound(Exception):
@@ -227,6 +243,37 @@ def process_stock_info(stocks: list[Security]):
             break
         else:
             save_stock_info(row, info['sector'], info['country'])
+
+
+def auto_define_bonds_info():
+    bonds = get_bonds_without_info()
+    if not bonds:
+        print('Securities without sector and country are not exist')
+        return
+    process_bonds_info(bonds)
+
+
+def get_bonds_without_info() -> Optional[list[Security]]:
+    return Security.objects.filter(country__isnull=True, sector__exact='BOND', not_found_on_market__exact=False)
+
+
+def process_bonds_info(bonds: list[Security]):
+    for row in bonds:
+        if row.currency == 'USD' or row.currency == 'EUR':
+            mark_security_as_not_found(row)
+        else:
+            if 'Казахстан' in row.name:
+                row.country = 'Kazakhstan'
+            elif 'Беларусь' in row.name:
+                row.country = 'Belarus'
+            else:
+                row.country = 'Russia'
+        row.save()
+        print_save_bond_success(row.ticker, row.country)
+
+
+def print_save_bond_success(ticker: str, country: str):
+    print('Ticker:', '$' + str(ticker) + ',', 'country:', str(country))
 
 
 def mark_security_as_not_found(row: Security):

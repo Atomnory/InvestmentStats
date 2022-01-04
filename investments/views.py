@@ -7,7 +7,7 @@ from .services import get_user_portfolios_list, get_empty_creating_portfolio_for
 from .services import get_formatted_securities_list, update_portfolio_graphs_path
 from .tinkoff_client import save_tinvest_etfs, save_tinvest_bonds, auto_define_stock_info, save_tinvest_stocks
 from .tinkoff_client import get_not_found_stock, get_empty_fill_info_form_or_none, save_not_found_stock_info
-from .tinkoff_client import delete_not_found_stock_and_add_to_stop_list
+from .tinkoff_client import delete_not_found_stock_and_add_to_stop_list, auto_define_bonds_info
 
 
 def index_page(request):
@@ -94,6 +94,7 @@ def superuser_dashboard(request):
             save_tinvest_stocks()
         elif 'define-info' in request.POST:
             auto_define_stock_info()
+            auto_define_bonds_info()
         elif 'fill-info' in request.POST:
             save_not_found_stock_info(not_found, request.POST)
         return redirect('superuser_dashboard')

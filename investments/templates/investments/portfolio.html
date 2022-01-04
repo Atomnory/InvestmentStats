@@ -4,60 +4,58 @@
 {% block Title %}Portfolio{% endblock %}
 
 {% block BodyContent %}
-<div class="row">
-    <div class="column">
-        <div class="securities-graph">
-            <img src="{{ securities_graph.url }}" alt="Pie graph">
+    <div class="row px-1">
+        <div class="col">
+            <div class="securities-graph">
+                <img src="{{ securities_graph.url }}" alt="Pie graph">
+            </div>
+            <div class="sector-graph">
+                <img src="{{ sector_graph.url }}" alt="Sector pie graph">
+            </div>
+            <div class="country-graph">
+                <img src="{{ country_graph.url }}" alt="Country pie graph">
+            </div>
+            <div class="market-graph">
+                <img src="{{ market_graph.url }}" alt="Market pie graph">
+            </div>
+            <div class="currency-graph">
+                <img src="{{ currency_graph.url }}" alt="Currency pie graph">
+            </div>
         </div>
-        <div class="sector-graph">
-            <img src="{{ sector_graph.url }}" alt="Sector pie graph">
-        </div>
-        <div class="country-graph">
-            <img src="{{ country_graph.url }}" alt="Country pie graph">
-        </div>
-        <div class="market-graph">
-            <img src="{{ market_graph.url }}" alt="Market pie graph">
-        </div>
-        <div class="currency-graph">
-            <img src="{{ currency_graph.url }}" alt="Currency pie graph">
-        </div>
-    </div>
-    <div class="column">
-        <div class="securities-list">
-            {% if securities %}
-                <ul>
+        <div class="col">
+            <div class="securities-list">
+                <ul class="list-group list-group-flush">
                 {% for row in securities %}
-                    <li>${{ row.0 }} - {{ row.1 }} {{ row.2 }}</li>
+                    <li class="list-group-item">${{ row.0 }} - {{ row.1 }} {{ row.2 }}</li>
+                {% empty %}
+                    <li class="list-group-item">Empty portfolio</li>
                 {% endfor %}
                 </ul>
-            {% else %}
-                <h1>Empty portfolio</h1>
-            {% endif %}
+            </div>
+        </div>
+        <div class="col">
+            <div class="create-security">
+                <form method="post">
+                    {% csrf_token %}
+                    {{ form_creating|crispy }}
+                    <button class="btn btn-success my-1" type="submit" name="create_security">Add security</button>
+                </form>
+            </div>
+            <div class="increase-security">
+                <form method="post">
+                    {% csrf_token %}
+                    {{ form_increasing|crispy }}
+                    <button class="btn btn-info my-1" type="submit" name="increase_security">Increase quantity</button>
+                </form>
+            </div>
+            <div class="delete-security">
+                <form method="post">
+                    {% csrf_token %}
+                    {{ form_deleting|crispy }}
+                    <button class="btn btn-danger my-1" type="submit" name="delete_security">Delete security</button>
+                </form>
+            </div>
+            <a href="{% url 'delete_portfolio' portfolio_pk %}" class="btn btn-danger mb-1" role="button">Delete this portfolio</a>
         </div>
     </div>
-    <div class="column">
-        <div class="create-security">
-            <form method="post">
-                {% csrf_token %}
-                {{ form_creating|crispy }}
-                <button class="btn btn-success" type="submit" name="create_security">Add security</button>
-            </form>
-        </div>
-        <div class="increase-security">
-            <form method="post">
-                {% csrf_token %}
-                {{ form_increasing|crispy }}
-                <button class="btn btn-info" type="submit" name="increase_security">Increase quantity</button>
-            </form>
-        </div>
-        <div class="delete-security">
-            <form method="post">
-                {% csrf_token %}
-                {{ form_deleting|crispy }}
-                <button class="btn btn-danger" type="submit" name="delete_security">Delete security</button>
-            </form>
-        </div>
-        <a href="{% url 'delete_portfolio' portfolio_pk %}" class="btn btn-danger" role="button">Delete this portfolio</a>
-    </div>
-</div>
 {% endblock %}

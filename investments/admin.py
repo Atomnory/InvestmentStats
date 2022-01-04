@@ -3,9 +3,9 @@ from .models import Security, ExchangeRate, Portfolio, PortfolioItem
 
 
 class SecurityAdmin(admin.ModelAdmin):
-    list_display = ('name', 'ticker', 'not_found_on_market')
+    list_display = ('name', 'ticker', 'sector', 'country', 'not_found_on_market')
 
-    list_filter = ['not_found_on_market']
+    list_filter = ['sector', 'not_found_on_market']
 
 
 class ExchangeRateAdmin(admin.ModelAdmin):
