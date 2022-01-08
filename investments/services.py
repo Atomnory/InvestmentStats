@@ -14,7 +14,6 @@ from .tinkoff_client import update_security_price
 from .graph import MarketGraphDrawer, CountryGraphDrawer, SecurityGraphDrawer, CurrencyGraphDrawer, SectorGraphDrawer
 from .graph import GraphPath
 from .utils import get_today, get_portfolio_items
-# TODO: add sector, country, currency graphs creating and updating
 # TODO: hide all graphs funcs in class Graph
 
 

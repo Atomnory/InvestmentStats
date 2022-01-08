@@ -1,4 +1,5 @@
 from django import forms
+from django_select2.forms import Select2Widget
 from .models import PortfolioItem, Portfolio, Security
 
 
@@ -13,6 +14,9 @@ class SecuritiesCreateForm(forms.ModelForm):
     class Meta:
         model = PortfolioItem
         fields = ['security_select', 'quantity']
+        widgets = {
+            'security': Select2Widget,
+        }
 
 
 class SecuritiesDeleteForm(forms.ModelForm):
