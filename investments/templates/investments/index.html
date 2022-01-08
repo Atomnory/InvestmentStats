@@ -7,7 +7,7 @@
 <div class="container">
   <div class="row">
     {% if portfolios %}
-        <div class="col list-group mt-3">
+        <div class="col list-group mt-4">
         {% for row in portfolios %}
             <a class="list-group-item list-group-item-action" href="{% url 'portfolio' row.pk %}">{{ row.name }}</a>
         {% endfor %}
@@ -16,7 +16,7 @@
     {% if not user.is_authenticated %}
         <h2>You should be login to add portfolio and securities.</h2>
     {% else %}
-        <div class="col create-portfolio mt-2">
+        <div class="col create-portfolio mt-1">
             <form method="post">
                 {% csrf_token %}
                 {{ form_creating|crispy }}

@@ -120,7 +120,7 @@ def is_in_stop_list(ticker: str, security_type: str) -> bool:
     stock_stop_list = get_stock_stop_list()
     if not stock_stop_list:
         return False
-    if security_type == 'Stock':
+    if security_type in ('Stock', 'Bond'):
         if ticker in stock_stop_list:
             return True
     return False
