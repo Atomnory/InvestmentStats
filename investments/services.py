@@ -10,15 +10,14 @@ from django.utils.functional import SimpleLazyObject
 from .models import Portfolio, PortfolioItem
 from .forms import SecuritiesCreateForm, SecuritiesDeleteForm, SecuritiesIncreaseQuantityForm
 from .forms import PortfolioCreateForm
-from .tinkoff_client import update_security_price
 from .graph import MarketGraphDrawer, CountryGraphDrawer, SecurityGraphDrawer, CurrencyGraphDrawer, SectorGraphDrawer
 from .graph import GraphPath
-from .utils import get_today, get_portfolio_items
+from .utils import get_current_portfolio_items, get_today
 # TODO: hide all graphs funcs in class Graph
 
 
 def get_user_portfolios_list(user: SimpleLazyObject) -> list[Portfolio]:
-    return user.portfolio_set.all()
+    return user.portfolio_set.all().order_by('pk')
 
 
 def get_empty_creating_portfolio_form() -> PortfolioCreateForm:
@@ -31,7 +30,7 @@ def create_portfolio(request: WSGIRequest):
         new_portfolio = form_creating.save(commit=False)
         new_portfolio.investor = request.user
         new_portfolio.save()
-        update_portfolio_graphs_path(new_portfolio)
+        update_portfolio_graphs(new_portfolio)
 
 
 def update_portfolio_graphs_path(portfolio: Portfolio):
@@ -82,6 +81,7 @@ def create_security(portfolio: Portfolio, post: QueryDict):
         if quantity > 0:
             item = PortfolioItem(portfolio=portfolio, security=security, quantity=quantity)
             item.save()
+        update_portfolio_graphs(portfolio)
 
 
 def delete_security(portfolio: Portfolio, post: QueryDict):
@@ -89,6 +89,7 @@ def delete_security(portfolio: Portfolio, post: QueryDict):
     if form_deleting.is_valid():
         item = form_deleting.cleaned_data['field']
         item.delete()
+        update_portfolio_graphs(portfolio)
 
 
 def increase_security(portfolio: Portfolio, post: QueryDict):
@@ -99,33 +100,34 @@ def increase_security(portfolio: Portfolio, post: QueryDict):
         if item.quantity + increment > 0:
             item.quantity += increment
         item.save()
+        update_portfolio_graphs(portfolio)
 
 
 def get_formatted_securities_list(portfolio: Portfolio) -> list[tuple[str, Decimal, str]]:
-    items = get_updated_portfolio_items(portfolio)
+    items = get_current_portfolio_items(portfolio)
     securities = []
     for row in items:
         cost = Decimal(row.security.price * row.quantity).quantize(Decimal('1.01'), rounding=ROUND_HALF_UP)
-        securities.append((row.security.ticker, cost, row.security.currency))
+        securities.append((row.security.name, cost, row.security.currency))
     return securities
 
 
-def get_updated_portfolio_items(portfolio: Portfolio) -> list[PortfolioItem]:
-    items = get_portfolio_items(portfolio)
-    for item in items:
-        if item.security.last_updated != get_today():
-            update_security_price(item.security)
-    return items
+def update_graphs_if_outdated(portfolio: Portfolio):
+    if portfolio.last_updated != get_today():
+        update_portfolio_graphs(portfolio)
 
 
 def update_portfolio_graphs(portfolio: Portfolio):
-    # TODO: make update graph only once per day and after item changing
     # plt.switch_backend('AGG')
+    # TODO: research change graphs type to .svg
     SecurityGraphDrawer(portfolio).update_graph()
     SectorGraphDrawer(portfolio).update_graph()
     CountryGraphDrawer(portfolio).update_graph()
     MarketGraphDrawer(portfolio).update_graph()
     CurrencyGraphDrawer(portfolio).update_graph()
+    
+    update_portfolio_graphs_path(portfolio)
+    # update urls path because without updating browser will use old graphs (??cookie??)
 
 # countries = Security.objects.order_by('country').distinct('country')
 # for i in countries:

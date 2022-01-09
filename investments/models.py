@@ -61,7 +61,7 @@ class Portfolio(models.Model):
     country_graph = models.ImageField('Country pie graph', upload_to='portfolio_graph', null=True)  # displays distinct countries
     market_graph = models.ImageField('Market pie graph', upload_to='portfolio_graph', null=True)  # displays countries joined in markets exclude USA and Russia
     currency_graph = models.ImageField('Currency pie graph', upload_to='portfolio_graph', null=True)
-    last_updated = models.DateField('Last update', auto_now=True)   # last_updated will be using for update graphs once per day or if items are changed
+    last_updated = models.DateField('Last update', auto_now=True)
 
     def __str__(self):
         return self.name

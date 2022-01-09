@@ -1,5 +1,9 @@
-1. Use Select2 for security searching
-2. Update web-design
-3. Add bonds
-4. Add and use Javascript animation to display pie graph instead of Matplotlib
+1. Research Celery (+ Redis) for automated:
+    a. updating Exchange rates once per day;
+    b. adding bonds, etfs, stocks once per quarter;
+    c. fill info about bonds and stocks if needy once per day.
+2. Exclude displaying Bonds in Market graph as part of a country. Use displaying Bonds as Bonds
+3. Fix Matplotlib graphs displaying
+4. Research using Javascript animation to display pie graph instead of Matplotlib
 5. Add Django REST Framework using
+6. Use Class-based generic views instead func views

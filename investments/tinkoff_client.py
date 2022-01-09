@@ -21,6 +21,7 @@ def update_security_price(security: Security):
     new_price = get_security_price(security.figi)
     security.price = new_price
     security.save()
+    print('$$ Update security:', security.ticker, '-', security.price, security.currency)
 
 
 def get_security_price(figi: str) -> Decimal:
@@ -225,7 +226,7 @@ def auto_define_stock_info():
         return
     stocks = get_list_stocks_without_info()
     if not stocks:
-        print('Securities without sector and country are not exist')
+        print('Stocks without sector and country are not exist')
         return
     process_stock_info(stocks)
     update_yahoo_api_using_date()
@@ -248,7 +249,7 @@ def process_stock_info(stocks: list[Security]):
 def auto_define_bonds_info():
     bonds = get_bonds_without_info()
     if not bonds:
-        print('Securities without sector and country are not exist')
+        print('Bonds without sector and country are not exist')
         return
     process_bonds_info(bonds)
 

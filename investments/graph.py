@@ -4,10 +4,10 @@ import matplotlib.pyplot as plt
 from config.settings import MEDIA_ROOT
 from .models import Portfolio
 from .exchanger import Exchanger
-from .utils import get_portfolio_items
+from .utils import get_current_portfolio_items
 
 
-# TODO: One security has not 100% on graph
+# TODO: One security has not 100% on graph: one time bug
 class AbstractGraphDrawer:
     def __init__(self, portfolio: Portfolio):
         self._portfolio = portfolio
@@ -17,7 +17,7 @@ class AbstractGraphDrawer:
         self._axe = None
         self._cost = None
         self._labels = None
-        self._calculator = AbstractGraphDataCalculator(portfolio)
+        self._calculator: AbstractGraphDataCalculator(portfolio) = None
 
     def update_graph(self):
         self._set_graph_path()
@@ -79,8 +79,8 @@ class CurrencyGraphDrawer(AbstractGraphDrawer):
 
 class AbstractGraphDataCalculator:
     def __init__(self, portfolio: Portfolio):
-        self._exchanger = Exchanger()
-        self._items = get_portfolio_items(portfolio)
+        self._exchanger: Exchanger() = None
+        self._items = get_current_portfolio_items(portfolio)
         self._costs = []
         self._labels = []
         self._item = None
@@ -134,6 +134,7 @@ class AbstractGraphDataCalculator:
 class SecurityGraphDataCalculator(AbstractGraphDataCalculator):
     def __init__(self, portfolio: Portfolio):
         super().__init__(portfolio)
+        self._exchanger = Exchanger()
         self._update_graph_data()
 
     def _process_item(self):
@@ -144,6 +145,7 @@ class SecurityGraphDataCalculator(AbstractGraphDataCalculator):
 class SectorGraphDataCalculator(AbstractGraphDataCalculator):
     def __init__(self, portfolio: Portfolio):
         super().__init__(portfolio)
+        self._exchanger = Exchanger()
         self._update_graph_data()
 
     def _process_item(self):
@@ -157,6 +159,7 @@ class SectorGraphDataCalculator(AbstractGraphDataCalculator):
 class CountryGraphDataCalculator(AbstractGraphDataCalculator):
     def __init__(self, portfolio: Portfolio):
         super().__init__(portfolio)
+        self._exchanger = Exchanger()
         self._update_graph_data()
 
     def _process_item(self):
@@ -170,6 +173,7 @@ class CountryGraphDataCalculator(AbstractGraphDataCalculator):
 class MarketGraphDataCalculator(AbstractGraphDataCalculator):
     def __init__(self, portfolio: Portfolio):
         super().__init__(portfolio)
+        self._exchanger = Exchanger()
         self._update_graph_data()
 
     def _process_item(self):
@@ -199,6 +203,7 @@ class MarketGraphDataCalculator(AbstractGraphDataCalculator):
 class CurrencyGraphDataCalculator(AbstractGraphDataCalculator):
     def __init__(self, portfolio: Portfolio):
         super().__init__(portfolio)
+        self._exchanger = Exchanger()
         self._update_graph_data()
 
     def _process_item(self):
