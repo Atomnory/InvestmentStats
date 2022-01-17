@@ -8,7 +8,7 @@ from django.core.handlers.wsgi import WSGIRequest
 from django.utils.functional import SimpleLazyObject
 
 from .models import Portfolio, PortfolioItem
-from .forms import SecuritiesCreateForm, SecuritiesDeleteForm, SecuritiesIncreaseQuantityForm
+from .forms import PortfolioItemsCreateForm, PortfolioItemsDeleteForm, PortfolioItemsIncreaseQuantityForm
 from .forms import PortfolioCreateForm
 from .graph import MarketGraphDrawer, CountryGraphDrawer, SecurityGraphDrawer, CurrencyGraphDrawer, SectorGraphDrawer
 from .graph import GraphPath
@@ -34,17 +34,11 @@ def create_portfolio(request: WSGIRequest):
 
 
 def update_portfolio_graphs_path(portfolio: Portfolio):
-    graph_path_security = GraphPath(portfolio.pk, 'security').graph_path
-    graph_path_sector = GraphPath(portfolio.pk, 'sector').graph_path
-    graph_path_country = GraphPath(portfolio.pk, 'country').graph_path
-    graph_path_market = GraphPath(portfolio.pk, 'market').graph_path
-    graph_path_currency = GraphPath(portfolio.pk, 'currency').graph_path
-
-    portfolio.securities_graph = ImageFieldFile(instance=None, name=graph_path_security, field=FileField())
-    portfolio.sector_graph = ImageFieldFile(instance=None, name=graph_path_sector, field=FileField())
-    portfolio.country_graph = ImageFieldFile(instance=None, name=graph_path_country, field=FileField())
-    portfolio.market_graph = ImageFieldFile(instance=None, name=graph_path_market, field=FileField())
-    portfolio.currency_graph = ImageFieldFile(instance=None, name=graph_path_currency, field=FileField())
+    graphs_name = ('security', 'sector', 'country', 'market', 'currency')
+    graphs_path = [GraphPath(portfolio.pk, x).graph_path for x in graphs_name]
+    graphs = [portfolio.securities_graph, portfolio.sector_graph, portfolio.country_graph, portfolio.market_graph, portfolio.currency_graph]
+    for i, graph in enumerate(graphs):
+        graph = ImageFieldFile(instance=None, name=graphs_path[i], field=FileField())
     portfolio.save()
 
 
@@ -53,63 +47,66 @@ def delete_portfolio(portfolio: Portfolio):
     portfolio.delete()
 
 
-def get_empty_portfolio_forms(portfolio: Portfolio) \
-        -> dict[str, Union[SecuritiesCreateForm, SecuritiesDeleteForm, SecuritiesIncreaseQuantityForm]]:
-    form_creating = SecuritiesCreateForm(portfolio)
-    form_deleting = SecuritiesDeleteForm(portfolio)
-    form_increasing = SecuritiesIncreaseQuantityForm(portfolio)
+class PortfolioItemFormsHandler:
+    def __init__(self, portfolio: Portfolio) -> None:
+        if not isinstance(portfolio, Portfolio):
+            raise TypeError('PortfolioItemFormsHandler accepts only Portfolio')
+        self._portfolio = portfolio
 
-    return {'form_creating': form_creating,
-            'form_deleting': form_deleting,
-            'form_increasing': form_increasing}
+    def fill_portfolio_forms(self, post: QueryDict):
+        if 'create_security' in post:
+            self._create_portfolio_item(post)
+        elif 'delete_security' in post:
+            self._delete_portfolio_item(post)
+        elif 'increase_security' in post:
+            self._increase_portfolio_item(post)
 
+    def _create_portfolio_item(self, post: QueryDict):
+        form_creating = PortfolioItemsCreateForm(self._portfolio, post)
+        if form_creating.is_valid():
+            security = form_creating.cleaned_data['security_select']
+            quantity = int(form_creating.cleaned_data['quantity'])
+            if quantity > 0:
+                item = PortfolioItem(portfolio=self._portfolio, security=security, quantity=quantity)
+                item.save()
+            update_portfolio_graphs(self._portfolio)
 
-def fill_portfolio_forms(portfolio: Portfolio, post: QueryDict):
-    if 'create_security' in post:
-        create_security(portfolio, post)
-    elif 'delete_security' in post:
-        delete_security(portfolio, post)
-    elif 'increase_security' in post:
-        increase_security(portfolio, post)
+    def _delete_portfolio_item(self, post: QueryDict):
+        form_deleting = PortfolioItemsDeleteForm(self._portfolio, post)
+        if form_deleting.is_valid():
+            item = form_deleting.cleaned_data['field']
+            item.delete()
+            update_portfolio_graphs(self._portfolio)
 
-
-def create_security(portfolio: Portfolio, post: QueryDict):
-    form_creating = SecuritiesCreateForm(portfolio, post)
-    if form_creating.is_valid():
-        security = form_creating.cleaned_data['security_select']
-        quantity = int(form_creating.cleaned_data['quantity'])
-        if quantity > 0:
-            item = PortfolioItem(portfolio=portfolio, security=security, quantity=quantity)
+    def _increase_portfolio_item(self, post: QueryDict):
+        form_increasing = PortfolioItemsIncreaseQuantityForm(self._portfolio, post)
+        if form_increasing.is_valid():
+            item = form_increasing.cleaned_data['field']
+            increment = int(form_increasing.cleaned_data['quantity'])
+            if item.quantity + increment > 0:
+                item.quantity += increment
             item.save()
-        update_portfolio_graphs(portfolio)
+            update_portfolio_graphs(self._portfolio)
 
+    def _form_items_list(self) -> list[tuple[str, Decimal, str]]:
+        items = get_current_portfolio_items(self._portfolio)
+        securities = []
+        for row in items:
+            cost = Decimal(row.security.price * row.quantity).quantize(Decimal('1.01'), rounding=ROUND_HALF_UP)
+            securities.append((row.security.name, cost, row.security.currency))
+        return securities
 
-def delete_security(portfolio: Portfolio, post: QueryDict):
-    form_deleting = SecuritiesDeleteForm(portfolio, post)
-    if form_deleting.is_valid():
-        item = form_deleting.cleaned_data['field']
-        item.delete()
-        update_portfolio_graphs(portfolio)
+    @property
+    def items_list(self) -> list[tuple[str, Decimal, str]]:
+        items = self._form_items_list()
+        return items 
 
-
-def increase_security(portfolio: Portfolio, post: QueryDict):
-    form_increasing = SecuritiesIncreaseQuantityForm(portfolio, post)
-    if form_increasing.is_valid():
-        item = form_increasing.cleaned_data['field']
-        increment = int(form_increasing.cleaned_data['quantity'])
-        if item.quantity + increment > 0:
-            item.quantity += increment
-        item.save()
-        update_portfolio_graphs(portfolio)
-
-
-def get_formatted_securities_list(portfolio: Portfolio) -> list[tuple[str, Decimal, str]]:
-    items = get_current_portfolio_items(portfolio)
-    securities = []
-    for row in items:
-        cost = Decimal(row.security.price * row.quantity).quantize(Decimal('1.01'), rounding=ROUND_HALF_UP)
-        securities.append((row.security.name, cost, row.security.currency))
-    return securities
+    @property
+    def empty_forms(self) \
+            -> dict[str, Union[PortfolioItemsCreateForm, PortfolioItemsDeleteForm, PortfolioItemsIncreaseQuantityForm]]:
+        return {'form_creating': PortfolioItemsCreateForm(self._portfolio),
+                'form_deleting': PortfolioItemsDeleteForm(self._portfolio),
+                'form_increasing': PortfolioItemsIncreaseQuantityForm(self._portfolio)}
 
 
 def update_graphs_if_outdated(portfolio: Portfolio):

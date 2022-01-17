@@ -3,7 +3,7 @@ from django_select2.forms import Select2Widget
 from .models import PortfolioItem, Portfolio, Security
 
 
-class SecuritiesCreateForm(forms.ModelForm):
+class PortfolioItemsCreateForm(forms.ModelForm):
     security_select = forms.ModelChoiceField(queryset=Security.objects.all(), empty_label='Choose security')
 
     def __init__(self, portfolio: Portfolio, *args, **kwargs):
@@ -19,7 +19,7 @@ class SecuritiesCreateForm(forms.ModelForm):
         }
 
 
-class SecuritiesDeleteForm(forms.ModelForm):
+class PortfolioItemsDeleteForm(forms.ModelForm):
     field = forms.ModelChoiceField(queryset=PortfolioItem.objects.all(), empty_label='Choose security')
 
     def __init__(self, portfolio: Portfolio, *args, **kwargs):
@@ -31,7 +31,7 @@ class SecuritiesDeleteForm(forms.ModelForm):
         fields = ['field']
 
 
-class SecuritiesIncreaseQuantityForm(forms.ModelForm):
+class PortfolioItemsIncreaseQuantityForm(forms.ModelForm):
     field = forms.ModelChoiceField(queryset=PortfolioItem.objects.all(), empty_label='Choose security')
 
     def __init__(self, portfolio: Portfolio, *args, **kwargs):

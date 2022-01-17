@@ -232,10 +232,9 @@ class GraphPath:
         return self._graph_path
 
     @property
-    def graph_full_path(self):
-        return self._graph_full_path
-
-    @property
     def graph_full_root(self):
         return self._graph_full_root
 
+    @property
+    def graph_full_path(self):
+        return self._graph_full_path

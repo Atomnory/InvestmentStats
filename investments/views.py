@@ -2,9 +2,8 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required, user_passes_test
 
 from .models import Portfolio, Security
-from .services import get_empty_portfolio_forms, delete_portfolio, fill_portfolio_forms, update_graphs_if_outdated
+from .services import PortfolioItemFormsHandler, update_graphs_if_outdated, delete_portfolio
 from .services import get_user_portfolios_list, get_empty_creating_portfolio_form, create_portfolio
-from .services import get_formatted_securities_list
 from .tinkoff_client import save_tinvest_etfs, save_tinvest_bonds, auto_define_stock_info, save_tinvest_stocks
 from .tinkoff_client import get_not_found_stock, get_empty_fill_info_form_or_none, save_not_found_stock_info
 from .tinkoff_client import delete_not_found_stock_and_add_to_stop_list, auto_define_bonds_info
@@ -36,11 +35,11 @@ def portfolio_page(request, portfolio_pk):
 
     if portfolio.investor == request.user:
         if request.method == 'POST':
-            fill_portfolio_forms(portfolio, request.POST)
+            PortfolioItemFormsHandler(portfolio).fill_portfolio_forms(request.POST)
             return redirect('portfolio', portfolio_pk=portfolio.pk)
 
-        forms = get_empty_portfolio_forms(portfolio)
-        securities = get_formatted_securities_list(portfolio)
+        forms = PortfolioItemFormsHandler(portfolio).empty_forms
+        securities = PortfolioItemFormsHandler(portfolio).items_list
         update_graphs_if_outdated(portfolio)
 
         portfolio_page_data = {
