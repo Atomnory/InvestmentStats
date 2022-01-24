@@ -20,6 +20,10 @@
                     {% csrf_token %}
                     <button class="btn btn-warning mb-1" type="submit" name="create-stocks">Create stocks</button>
                 </form>
+                <form method="post">
+                    {% csrf_token %}
+                    <button class="btn btn-danger mb-1" type="submit" name="create-securities">Create all securities</button>
+                </form>
             </div>
         </div>
         <div class="col">

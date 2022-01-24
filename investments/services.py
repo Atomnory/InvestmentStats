@@ -47,7 +47,7 @@ def delete_portfolio(portfolio: Portfolio):
     portfolio.delete()
 
 
-class PortfolioItemFormsHandler:
+class PortfolioItemViewHandler:
     def __init__(self, portfolio: Portfolio) -> None:
         if not isinstance(portfolio, Portfolio):
             raise TypeError('PortfolioItemFormsHandler accepts only Portfolio')
@@ -93,7 +93,7 @@ class PortfolioItemFormsHandler:
         securities = []
         for row in items:
             cost = Decimal(row.security.price * row.quantity).quantize(Decimal('1.01'), rounding=ROUND_HALF_UP)
-            securities.append((row.security.name, cost, row.security.currency))
+            securities.append((row.security.name, cost, row.security.currency, row.quantity))
         return securities
 
     @property

@@ -7,3 +7,4 @@
 4. Research using Javascript animation to display pie graph instead of Matplotlib
 5. Add Django REST Framework using
 6. Use Class-based generic views instead func views
+7. Add re-request YAHOO API when error 504 is catched
